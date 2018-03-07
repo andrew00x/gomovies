@@ -10,6 +10,7 @@ import (
 	"strings"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/file"
+	"github.com/andrew00x/gomovies/util"
 )
 
 type MovieFile struct {
@@ -78,8 +79,8 @@ func (ctl *Catalog) Get(id int) *MovieFile {
 	return ctl.movies[id]
 }
 
-func (ctl *Catalog) Find(name string) []MovieFile {
-	ids := ctl.index.find(name)
+func (ctl *Catalog) Find(title string) []MovieFile {
+	ids := ctl.index.find(title)
 	result := make([]MovieFile, 0, len(ids))
 	for _, id := range ids {
 		m := ctl.movies[id]
@@ -152,7 +153,7 @@ func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) er
 	for _, dir := range dirs {
 		if exists, err := file.Exists(dir); exists && err == nil {
 			filepath.Walk(dir, func(path string, fInfo os.FileInfo, err error) error {
-				if !known[path] && fInfo.Mode().IsRegular() && contains(fileExt, filepath.Ext(fInfo.Name())) {
+				if !known[path] && fInfo.Mode().IsRegular() && util.Contains(fileExt, filepath.Ext(fInfo.Name())) {
 					id := idGen.next()
 					title := fInfo.Name()
 					drive := driveName(drives, path)
@@ -164,15 +165,6 @@ func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) er
 		}
 	}
 	return nil
-}
-
-func contains(arr []string, el string) bool {
-	for _, cur := range arr {
-		if el == cur {
-			return true
-		}
-	}
-	return false
 }
 
 func driveName(drives []*drive, file string) string {

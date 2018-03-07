@@ -3,6 +3,7 @@ package player
 import (
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
+	"github.com/andrew00x/omxcontrol"
 )
 
 type Factory func(conf *config.Config) (Player, error)
@@ -18,29 +19,27 @@ func Create(conf *config.Config) (Player, error) {
 }
 
 type Player interface {
-	Status() (*api.PlayerStatus, error)
-
-	Play(path string) error
-	Enqueue(path string) error
-
-	Stop() error
-	PlayPause() error
-	ReplayCurrent() error
-	Forward30s() error
-	Rewind30s() error
+	AudioTracks() ([]omxcontrol.Stream, error)
 	Forward10m() error
-	Rewind10m() error
-	VolumeUp() error
-	VolumeDown() error
+	Forward30s() error
+	Mute() error
 	NextAudioTrack() error
-	PreviousAudioTrack() error
 	NextSubtitles() error
+	Play(path string) error
+	PlayPause() error
+	PreviousAudioTrack() error
 	PreviousSubtitles() error
+	ReplayCurrent() error
+	Rewind10m() error
+	Rewind30s() error
+	SelectAudio(index int) error
+	SelectSubtitle(index int) error
+	Status() (api.PlayerStatus, error)
+	Stop() error
+	Subtitles() ([]omxcontrol.Stream, error)
 	ToggleSubtitles() error
-
-	Playlist() (*api.Playlist, error)
-	NextInPlaylist() error
-	PreviousInPlaylist() error
-	DeleteInPlaylist(pos int) error
-	PlayInPlaylist(pos int) error
+	Unmute() error
+	Volume() (float64, error)
+	VolumeDown() error
+	VolumeUp() error
 }

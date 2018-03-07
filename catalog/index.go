@@ -18,8 +18,8 @@ func (i *index) add(f MovieFile) {
 	log.Printf("Add file '%s' to index\n", f.Path)
 }
 
-func (i *index) find(name string) []int {
-	lower := strings.ToLower(name)
+func (i *index) find(title string) []int {
+	lower := strings.ToLower(title)
 	var result []int
 	for key, id := range i.idx {
 		if strings.Contains(key, lower) {

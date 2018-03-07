@@ -8,23 +8,11 @@ type Movie struct {
 	Available bool   `json:"available"`
 }
 
-type Playlist struct {
-	Items []string `json:"items"`
-}
-
 type PlayerStatus struct {
-	Playing  string    `json:"playing"`
-	Duration int       `json:"duration"`
-	Position int       `json:"position"`
-	Paused   bool      `json:"paused"`
-	Streams  []*Stream `json:"streams"`
-}
-
-type Stream struct {
-	Num     int    `json:"num"`
-	Lang    string `json:"lang"`
-	Type    string `json:"type"`
-	Default bool   `json:"def"`
+	Playing  string `json:"playing"`
+	Duration int    `json:"duration"`
+	Position int    `json:"position"`
+	Paused   bool   `json:"paused"`
 }
 
 type MessagePayload struct {

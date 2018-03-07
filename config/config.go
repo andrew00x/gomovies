@@ -7,12 +7,11 @@ import (
 )
 
 type Config struct {
-	CatalogFile      string   `json:"catalog_file"`
-	Dirs             []string `json:"dirs"`
-	SavePlaybackTime string   `json:"save_playback_time"`
-	VideoFileExts    []string `json:"video_file_exts"`
-	WebDir           string   `json:"web_dir"`
-	WebPort          int      `json:"web_port"`
+	CatalogFile   string   `json:"catalog_file"`
+	Dirs          []string `json:"dirs"`
+	VideoFileExts []string `json:"video_file_exts"`
+	WebDir        string   `json:"web_dir"`
+	WebPort       int      `json:"web_port"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -29,9 +28,6 @@ func loadConfig(path string) (*Config, error) {
 	var conf Config
 	if err = parser.Decode(&conf); err != nil {
 		return nil, err
-	}
-	if conf.SavePlaybackTime == "" {
-		conf.SavePlaybackTime = "yes"
 	}
 	if conf.WebPort == 0 {
 		conf.WebPort = 8000

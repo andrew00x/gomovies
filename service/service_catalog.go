@@ -17,7 +17,7 @@ func (m ByName) Len() int           { return len(m) }
 func (m ByName) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 func (m ByName) Less(i, j int) bool { return m[i].Title < m[j].Title }
 
-func NewCatalogService(ctl *catalog.Catalog) *CatalogService {
+func CreateCatalogService(ctl *catalog.Catalog) *CatalogService {
 	return &CatalogService{ctl}
 }
 
@@ -31,8 +31,8 @@ func (srv *CatalogService) All() []api.Movie {
 	return m
 }
 
-func (srv *CatalogService) Find(name string) []api.Movie {
-	m := toMovies(srv.ctl.Find(name))
+func (srv *CatalogService) Find(title string) []api.Movie {
+	m := toMovies(srv.ctl.Find(title))
 	sort.Sort(ByName(m))
 	return m
 }

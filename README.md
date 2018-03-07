@@ -1,8 +1,8 @@
 # gomovies
-Web interface for [omxd](https://github.com/subogero/omxd)
+Web interface for [omxplayer](https://github.com/popcornmix/omxplayer)
 
 ## Pre-requirements
-Install omxd [omxd](https://github.com/subogero/omxd)
+Install omxd [omxplayer](https://github.com/popcornmix/omxplayer)
 
 ## Configurations
 Create in directory *$HOME/.gomovies/* file *config.json* with following content:

@@ -1,338 +1,248 @@
 package player
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
-	"strings"
-	"regexp"
+	"syscall"
 	"time"
 	"github.com/andrew00x/gomovies/api"
-	"github.com/andrew00x/gomovies/file"
 	"github.com/andrew00x/gomovies/config"
+	"github.com/andrew00x/omxcontrol"
 )
 
-var omxCtl = "/var/run/omxctl"
-var omxStat = "/var/log/omxstat"
-var omxPlay = "/var/local/omxplay"
-
 type OMXPlayer struct {
-	savePlaybackTime bool
-	playbacks        map[string]*playback
+	process *os.Process
+	control *omxcontrol.OmxCtrl
 }
 
-type playback struct {
-	startPos    int
+var controlNotSetup = errors.New("omxplayer control is not setup")
+
+func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		audios, err = p.control.AudioTracks()
+	}
+	return
+}
+
+func (p *OMXPlayer) Forward10m() error {
+	return p.action(omxcontrol.ActionSeekForwardLarge)
+}
+
+func (p *OMXPlayer) Forward30s() error {
+	return p.action(omxcontrol.ActionSeekForwardSmall)
+}
+
+func (p *OMXPlayer) Mute() (err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		err = p.control.Mute()
+	}
+	return
+}
+
+func (p *OMXPlayer) NextAudioTrack() error {
+	return p.action(omxcontrol.ActionNextAudio)
+}
+
+func (p *OMXPlayer) NextSubtitles() error {
+	return p.action(omxcontrol.ActionNextSubtitle)
+}
+
+func (p *OMXPlayer) Play(path string) (err error) {
+	p.Stop()
+	err = p.start(path)
+	if err == nil {
+		var control *omxcontrol.OmxCtrl
+		control, err = setupControl()
+		if err == nil {
+			p.control = control
+		} else {
+			p.quit()
+		}
+	}
+	return
+}
+
+func (p *OMXPlayer) PlayPause() error {
+	if p.control == nil {
+		return controlNotSetup
+	}
+	return p.control.PlayPause()
+}
+
+func (p *OMXPlayer) PreviousAudioTrack() error {
+	return p.action(omxcontrol.ActionPreviousAudio)
+}
+
+func (p *OMXPlayer) PreviousSubtitles() error {
+	return p.action(omxcontrol.ActionPreviousSubtitle)
+}
+
+func (p *OMXPlayer) ReplayCurrent() (err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		err = p.control.SetPosition(0)
+	}
+	return
+}
+
+func (p *OMXPlayer) Rewind10m() error {
+	return p.action(omxcontrol.ActionSeekBackLarge)
+}
+
+func (p *OMXPlayer) Rewind30s() error {
+	return p.action(omxcontrol.ActionSeekBackSmall)
+}
+
+func (p *OMXPlayer) SelectAudio(index int) (err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		var ok bool
+		if ok, err = p.control.SelectAudio(index); !ok {
+			err = errors.New(fmt.Sprintf("audio track %d was not selected", index))
+		}
+	}
+	return
+}
+
+func (p *OMXPlayer) SelectSubtitle(index int) (err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		var ok bool
+		if ok, err = p.control.SelectSubtitle(index); !ok {
+			err = errors.New(fmt.Sprintf("subtitle %d was not selected", index))
+		}
+	}
+	return
+}
+
+func (p *OMXPlayer) Status() (status api.PlayerStatus, err error) {
+	if p.control != nil {
+		var playing string
+		var position, duration time.Duration
+		var pbs omxcontrol.Status
+		playing, err = p.control.Playing()
+		position, err = p.control.Position()
+		duration, err = p.control.Duration()
+		pbs, err = p.control.PlaybackStatus()
+		if err == nil {
+			status.Playing = playing
+			status.Position = int(position / time.Second)
+			status.Duration = int(duration / time.Second)
+			status.Paused = pbs == omxcontrol.Paused
+		}
+	}
+	return
+}
+
+func (p *OMXPlayer) Stop() error {
+	return p.quit()
+}
+
+func (p *OMXPlayer) Subtitles() (subtitles []omxcontrol.Stream, err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		subtitles, err = p.control.Subtitles()
+	}
+	return
+}
+
+func (p *OMXPlayer) Unmute() (err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		err = p.control.Unmute()
+	}
+	return
+}
+
+func (p *OMXPlayer) ToggleSubtitles() error {
+	return p.action(omxcontrol.ActionToggleSubtitle)
+}
+
+func (p *OMXPlayer) Volume() (vol float64, err error) {
+	if p.control == nil {
+		err = controlNotSetup
+	} else {
+		vol, err = p.control.Volume()
+	}
+	return
+}
+
+func (p *OMXPlayer) VolumeDown() error {
+	return p.action(omxcontrol.ActionDecreaseVolume)
+}
+
+func (p *OMXPlayer) VolumeUp() error {
+	return p.action(omxcontrol.ActionIncreaseVolume)
+}
+
+func (p *OMXPlayer) action(actionCode omxcontrol.KeyboardAction) error {
+	if p.control == nil {
+		return controlNotSetup
+	}
+	return p.control.Action(actionCode)
 }
 
 func init() {
 	factory = func(conf *config.Config) (Player, error) {
-		pid, err := pidOf("omxd")
-		if err != nil {
-			return nil, err
+		return &OMXPlayer{}, nil
+	}
+}
+
+func (p *OMXPlayer) quit() (err error) {
+	if p.process != nil {
+		log.Printf("kill omxplayer, pid: (%d)\n", p.process.Pid)
+		pgid, err := syscall.Getpgid(p.process.Pid)
+		if err == nil {
+			syscall.Kill(-pgid, syscall.SIGTERM)
 		}
-		if pid == 0 {
-			return nil, errors.New(fmt.Sprintf("Unable detect 'omxd' status: %v\n", err))
-		}
-		return &OMXPlayer{savePlaybackTime: conf.SavePlaybackTime == "yes", playbacks: make(map[string]*playback)}, nil
-	}
-}
-
-func pidOf(cmd string) (int, error) {
-	pgrep := exec.Command("pgrep", cmd)
-	pid, err := pgrep.Output()
-	if err != nil {
-		return 0, errors.New("please check that 'omxd' is running")
-	}
-	s := strings.Fields(string(pid))[0]
-	return strconv.Atoi(s)
-}
-
-func (p *OMXPlayer) Status() (*api.PlayerStatus, error) {
-	st, err := readStatus(omxStat)
-	if err != nil {
-		return nil, err
-	}
-	if st.Playing != "" {
-		pb, ok := p.playbacks[st.Playing]
-		if ok {
-			st.Position += pb.startPos
-		}
-	}
-	return st, nil
-}
-
-func (p *OMXPlayer) Play(playIt string) error {
-	var cmd string
-	pb, ok := p.playbacks[playIt]
-	if ok {
-		cmd = fmt.Sprintf(`O
-O -b
-O -l
-O %s
-H %s
-`, hoursMinsSecs(pb.startPos), playIt)
-	} else {
-		cmd = fmt.Sprintf(`O
-O -b
-H %s
-`, playIt)
-	}
-	return sendCommand(cmd)
-}
-
-func hoursMinsSecs(t int) string {
-	h := t / 3600
-	m := (t % 3600) / 60
-	s := t % 60
-	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
-}
-
-func (p *OMXPlayer) Enqueue(enqueueIt string) error {
-	cmd := fmt.Sprintf("A %s\n", enqueueIt)
-	return sendCommand(cmd)
-}
-
-func (p *OMXPlayer) Stop() error {
-	if p.savePlaybackTime {
-		st, err := p.Status()
-		if err != nil {
-			log.Printf("Unable read current status of player: %v\nSkip saving playback time", err)
-		} else {
-			pb, ok := p.playbacks[st.Playing]
-			if !ok {
-				pb = &playback{}
-				p.playbacks[st.Playing] = pb
-			}
-			pb.startPos = st.Position
-		}
-	}
-	return sendCommand("P\n")
-}
-
-func (p *OMXPlayer) PlayPause() error {
-	return sendCommand("p\n")
-}
-
-func (p *OMXPlayer) ReplayCurrent() error {
-	st, err := p.Status()
-	if err != nil {
-		return err
-	}
-	if st.Playing != "" {
-		delete(p.playbacks, st.Playing)
-		cmd := fmt.Sprintf(`O
-O -b
-O -l
-O 00:00:00
-H %s
-`, st.Playing)
-		return sendCommand(cmd)
-	}
-	return nil
-}
-
-func (p *OMXPlayer) Forward30s() error {
-	return sendCommand("f\n")
-}
-
-func (p *OMXPlayer) Rewind30s() error {
-	return sendCommand("r\n")
-}
-
-func (p *OMXPlayer) Forward10m() error {
-	return sendCommand("F\n")
-}
-
-func (p *OMXPlayer) Rewind10m() error {
-	return sendCommand("R\n")
-}
-
-func (p *OMXPlayer) VolumeUp() error {
-	return sendCommand("+\n")
-}
-
-func (p *OMXPlayer) VolumeDown() error {
-	return sendCommand("-\n")
-}
-
-func (p *OMXPlayer) NextAudioTrack() error {
-	return sendCommand("k\n")
-}
-
-func (p *OMXPlayer) PreviousAudioTrack() error {
-	return sendCommand("K\n")
-}
-
-func (p *OMXPlayer) NextSubtitles() error {
-	return sendCommand("m\n")
-}
-
-func (p *OMXPlayer) PreviousSubtitles() error {
-	return sendCommand("M\n")
-}
-
-func (p *OMXPlayer) ToggleSubtitles() error {
-	return sendCommand("s\n")
-}
-
-func (p *OMXPlayer) Playlist() (*api.Playlist, error) {
-	playlist, err := readPlaylist(omxPlay)
-	if err != nil && os.IsNotExist(err) {
-		return &api.Playlist{Items: []string{}}, nil
-	} else if err != nil {
-		return nil, err
-	}
-	return playlist, nil
-}
-
-func (p *OMXPlayer) NextInPlaylist() error {
-	return sendCommand("n\n")
-}
-
-func (p *OMXPlayer) PreviousInPlaylist() error {
-	return sendCommand("N\n")
-}
-
-func (p *OMXPlayer) DeleteInPlaylist(pos int) error {
-	cmd := fmt.Sprintf("x %d\n", pos)
-	return sendCommand(cmd)
-}
-
-func (p *OMXPlayer) PlayInPlaylist(pos int) error {
-	cmd := fmt.Sprintf("g %d\n", pos)
-	return sendCommand(cmd)
-}
-
-func sendCommand(cmd string) error {
-	f, err := os.OpenFile(omxCtl, os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	_, err = w.WriteString(cmd)
-	if err == nil {
-		err = w.Flush()
-	}
-	return err
-}
-
-func readStatus(omxstat string) (*api.PlayerStatus, error) {
-	var logFile string
-	status := &api.PlayerStatus{}
-	err := file.ReadLines(omxstat, func(line string) bool {
-		// Format: timestamp state [dt logfile file]: '%d %s\n' or '%d %s %d %s %s\n`
-		var p int
-		var start, st, play, playing string
-		p = strings.IndexRune(line, ' ')
-		if p > 0 {
-			start = line[0:p]
-			line = line[p+1:]
-		}
-		p = strings.IndexRune(line, ' ')
-		if p > 0 {
-			st = line[0:p]
-		} else {
-			st = line
-		}
-		if st != "" && st != "Stopped" {
-			line = line[p+1:]
-			p = strings.IndexRune(line, ' ')
-			play = line[0:p]
-			line = line[p+1:]
-			p = strings.IndexRune(line, ' ')
-			logFile = line[0:p]
-			line = line[p+1:]
-			playing = line
-		}
-		status.Paused = st == "Paused"
-		status.Playing = playing
-		if st == "Playing" {
-			startTime, _ := strconv.ParseInt(start, 10, 64)
-			playTime, _ := strconv.ParseInt(play, 10, 64)
-			status.Position = int(playTime) + int(time.Now().Unix()-startTime)
-		}
-		return false
-	})
-	if err != nil {
-		return nil, err
-	}
-	if logFile != "" {
-		err := addVideoFileInfo(logFile, status)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return status, nil
-}
-
-func addVideoFileInfo(videoLogFile string, status *api.PlayerStatus) (err error) {
-	streamRegex := regexp.MustCompile(`Stream #\d+:(\d+)(\(\w+\))?: (Audio|Video|Subtitle): (.*)?`)
-	err = file.ReadLines(videoLogFile, func(line string) bool {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "Duration:") {
-			ds := line[10:18]
-			var h, m, s int
-			fmt.Sscanf(ds, "%d:%d:%d", &h, &m, &s)
-			d := h * 3600
-			d += m * 60
-			d += s
-			status.Duration = d
-		} else if strings.HasPrefix(line, "Stream") {
-			streamLine := streamRegex.FindStringSubmatch(line)
-			if len(streamLine) == 5 {
-				num64, _ := strconv.ParseInt(streamLine[1], 10, 64)
-				num := int(num64)
-				lang, sType, details := streamLine[2], streamLine[3], streamLine[4]
-				if sType == "Audio" || sType == "Subtitle" {
-					stream := api.Stream{Num: num,
-						Lang: strings.Trim(lang, "()"),
-						Type: sType,
-						Default: strings.HasSuffix(details, "(default)")}
-					status.Streams = append(status.Streams, &stream)
-				}
-			}
-		}
-		return true
-	})
-	if err == nil {
-		for _, t := range []string{"Audio", "Subtitle"} {
-			ofType := filter(status.Streams, func(s api.Stream) bool {
-				return s.Type == t
-			})
-			if len(ofType) == 1 {
-				ofType[0].Default = true
-			}
-		}
+		p.process.Wait()
+		p.process = nil
+		p.control = nil
 	}
 	return
 }
 
-func filter(streams []*api.Stream, predicate func(api.Stream) bool) (res []*api.Stream) {
-	for _, s := range streams {
-		if predicate(*s) {
-			res = append(res, s)
+func setupControl() (control *omxcontrol.OmxCtrl, err error) {
+	attempts := 50
+	retryDelay := time.Duration(100) * time.Millisecond
+	control, err = omxcontrol.Create()
+	if err == nil {
+		var ready bool
+		for i := 1; ; i++ {
+			ready, err = control.CanControl()
+			if err == nil && ready {
+				log.Printf("setup omxplayer control after %d attempts\n", i)
+				return
+			}
+			if i > attempts {
+				break
+			}
+			time.Sleep(retryDelay)
 		}
 	}
+	err = errors.New(fmt.Sprintf("unable setup omxplayer control after %d attempts, last error: %v", attempts, err))
 	return
 }
 
-func readPlaylist(omxplay string) (*api.Playlist, error) {
-	items := make([]string, 0, 10)
-	err := file.ReadLines(omxplay, func(line string) bool {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			items = append(items, line)
-		}
-		return true
-	})
-	if err != nil {
-		return nil, err
+func (p *OMXPlayer) start(path string) (err error) {
+	cmd := exec.Command("/usr/bin/omxplayer", "-b", path)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	err = cmd.Start()
+	if err == nil {
+		p.process = cmd.Process
+		log.Printf("started omxplayer, pid: (%d); playing: %s\n", p.process.Pid, path)
 	}
-	return &api.Playlist{Items: items}, err
+	return
 }
