@@ -58,13 +58,29 @@ func (srv *PlayerService) NextSubtitles() (subtitles []omxcontrol.Stream, err er
 	return
 }
 
-func (srv *PlayerService) Play(id int) (status api.PlayerStatus, err error) {
+func (srv *PlayerService) Pause() (status api.PlayerStatus, err error) {
+	err = srv.p.Pause()
+	if err == nil {
+		status, err = srv.p.Status()
+	}
+	return
+}
+
+func (srv *PlayerService) Play() (status api.PlayerStatus, err error) {
+	err = srv.p.Play()
+	if err == nil {
+		status, err = srv.p.Status()
+	}
+	return
+}
+
+func (srv *PlayerService) PlayMovie(id int) (status api.PlayerStatus, err error) {
 	m := srv.ctl.Get(id)
 	if m == nil {
 		err = errors.New(fmt.Sprintf("invalid movie id: %d", id))
 		return
 	}
-	err = srv.p.Play(m.Path)
+	err = srv.p.PlayMovie(m.Path)
 	if err == nil {
 		status, err = srv.p.Status()
 	}

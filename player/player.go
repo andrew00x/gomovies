@@ -25,7 +25,9 @@ type Player interface {
 	Mute() error
 	NextAudioTrack() error
 	NextSubtitles() error
-	Play(path string) error
+	Pause() error
+	Play() error
+	PlayMovie(path string) error
 	PlayPause() error
 	PreviousAudioTrack() error
 	PreviousSubtitles() error

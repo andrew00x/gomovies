@@ -56,7 +56,7 @@ func main() {
 
 	webClient()
 	http.HandleFunc("/api/list", allMovies)
-	http.HandleFunc("/api/play", play)
+	http.HandleFunc("/api/play", playMovie)
 	http.HandleFunc("/api/search", searchMovies)
 	http.HandleFunc("/api/player/audios", audios)
 	http.HandleFunc("/api/player/forward10m", forward10m)
@@ -64,6 +64,8 @@ func main() {
 	http.HandleFunc("/api/player/mute", mute)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
 	http.HandleFunc("/api/player/nextsubtitles", nextSubtitles)
+	http.HandleFunc("/api/player/pause", pause)
+	http.HandleFunc("/api/player/play", play)
 	http.HandleFunc("/api/player/playpause", playPause)
 	http.HandleFunc("/api/player/previousaudiotrack", previousAudioTrack)
 	http.HandleFunc("/api/player/previoussubtitles", previousSubtitles)
@@ -129,14 +131,24 @@ func nextSubtitles(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(subtitles, err, w)
 }
 
-func play(w http.ResponseWriter, r *http.Request) {
+func playMovie(w http.ResponseWriter, r *http.Request) {
 	var entity struct{ Movie int `json:"movie"` }
 	var status api.PlayerStatus
 	var err error
 	parser := json.NewDecoder(r.Body)
 	if err = parser.Decode(&entity); err == nil {
-		status, err = playerService.Play(entity.Movie)
+		status, err = playerService.PlayMovie(entity.Movie)
 	}
+	writeJsonResponse(status, err, w)
+}
+
+func pause(w http.ResponseWriter, _ *http.Request) {
+	status, err := playerService.Pause()
+	writeJsonResponse(status, err, w)
+}
+
+func play(w http.ResponseWriter, _ *http.Request) {
+	status, err := playerService.Play()
 	writeJsonResponse(status, err, w)
 }
 

@@ -54,7 +54,21 @@ func (p *OMXPlayer) NextSubtitles() error {
 	return p.action(omxcontrol.ActionNextSubtitle)
 }
 
-func (p *OMXPlayer) Play(path string) (err error) {
+func (p *OMXPlayer) Pause() error {
+	if p.control == nil {
+		return controlNotSetup
+	}
+	return p.control.Pause()
+}
+
+func (p *OMXPlayer) Play() error {
+	if p.control == nil {
+		return controlNotSetup
+	}
+	return p.control.Play()
+}
+
+func (p *OMXPlayer) PlayMovie(path string) (err error) {
 	p.Stop()
 	err = p.start(path)
 	if err == nil {
@@ -246,3 +260,12 @@ func (p *OMXPlayer) start(path string) (err error) {
 	}
 	return
 }
+
+/*
+func (p *OMXPlayer) isRunning() (alive bool) {
+	if err := p.process.Signal(syscall.Signal(0)); err == nil {
+		alive = true
+	}
+	return
+}
+*/
