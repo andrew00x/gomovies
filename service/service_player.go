@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"time"
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/catalog"
 	"github.com/andrew00x/gomovies/player"
@@ -20,22 +21,6 @@ func CreatePlayerService(plr player.Player, ctl *catalog.Catalog) *PlayerService
 
 func (srv *PlayerService) AudioTracks() ([]omxcontrol.Stream, error) {
 	return srv.p.AudioTracks()
-}
-
-func (srv *PlayerService) Forward10m() (status api.PlayerStatus, err error) {
-	err = srv.p.Forward10m()
-	if err == nil {
-		status, err = srv.p.Status()
-	}
-	return
-}
-
-func (srv *PlayerService) Forward30s() (status api.PlayerStatus, err error) {
-	err = srv.p.Forward30s()
-	if err == nil {
-		status, err = srv.p.Status()
-	}
-	return
 }
 
 func (srv *PlayerService) Mute() error {
@@ -119,16 +104,8 @@ func (srv *PlayerService) ReplayCurrent() (status api.PlayerStatus, err error) {
 	return
 }
 
-func (srv *PlayerService) Rewind10m() (status api.PlayerStatus, err error) {
-	err = srv.p.Rewind10m()
-	if err == nil {
-		status, err = srv.p.Status()
-	}
-	return
-}
-
-func (srv *PlayerService) Rewind30s() (status api.PlayerStatus, err error) {
-	err = srv.p.Rewind30s()
+func (srv *PlayerService) Seek(offset int) (status api.PlayerStatus, err error) {
+	err = srv.p.Seek(time.Duration(offset) * time.Second)
 	if err == nil {
 		status, err = srv.p.Status()
 	}
@@ -147,6 +124,14 @@ func (srv *PlayerService) SelectSubtitle(index int) (subtitles []omxcontrol.Stre
 	err = srv.p.SelectSubtitle(index)
 	if err == nil {
 		subtitles, err = srv.p.Subtitles()
+	}
+	return
+}
+
+func (srv *PlayerService) SetPosition(position int) (status api.PlayerStatus, err error) {
+	err = srv.p.SetPosition(time.Duration(position) * time.Second)
+	if err == nil {
+		status, err = srv.p.Status()
 	}
 	return
 }

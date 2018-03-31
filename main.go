@@ -59,8 +59,6 @@ func main() {
 	http.HandleFunc("/api/play", playMovie)
 	http.HandleFunc("/api/search", searchMovies)
 	http.HandleFunc("/api/player/audios", audios)
-	http.HandleFunc("/api/player/forward10m", forward10m)
-	http.HandleFunc("/api/player/forward30s", forward30s)
 	http.HandleFunc("/api/player/mute", mute)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
 	http.HandleFunc("/api/player/nextsubtitles", nextSubtitles)
@@ -70,10 +68,10 @@ func main() {
 	http.HandleFunc("/api/player/previousaudiotrack", previousAudioTrack)
 	http.HandleFunc("/api/player/previoussubtitles", previousSubtitles)
 	http.HandleFunc("/api/player/replay", replayCurrent)
-	http.HandleFunc("/api/player/rewind10m", rewind10m)
-	http.HandleFunc("/api/player/rewind30s", rewind30s)
+	http.HandleFunc("/api/player/seek", seek)
 	http.HandleFunc("/api/player/audio", selectAudio)
 	http.HandleFunc("/api/player/subtitle", selectSubtitle)
+	http.HandleFunc("/api/player/position", setPosition)
 	http.HandleFunc("/api/player/status", status)
 	http.HandleFunc("/api/player/stop", stop)
 	http.HandleFunc("/api/player/subtitles", subtitles)
@@ -104,16 +102,6 @@ func allMovies(w http.ResponseWriter, _ *http.Request) {
 func audios(w http.ResponseWriter, _ *http.Request) {
 	audios, err := playerService.AudioTracks()
 	writeJsonResponse(audios, err, w)
-}
-
-func forward10m(w http.ResponseWriter, _ *http.Request) {
-	status, err := playerService.Forward10m()
-	writeJsonResponse(status, err, w)
-}
-
-func forward30s(w http.ResponseWriter, _ *http.Request) {
-	status, err := playerService.Forward30s()
-	writeJsonResponse(status, err, w)
 }
 
 func mute(w http.ResponseWriter, _ *http.Request) {
@@ -172,16 +160,6 @@ func replayCurrent(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(status, err, w)
 }
 
-func rewind10m(w http.ResponseWriter, _ *http.Request) {
-	status, err := playerService.Rewind10m()
-	writeJsonResponse(status, err, w)
-}
-
-func rewind30s(w http.ResponseWriter, _ *http.Request) {
-	status, err := playerService.Rewind30s()
-	writeJsonResponse(status, err, w)
-}
-
 func searchMovies(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Query().Get("q")
 	writeJsonResponse(catalogService.Find(title), nil, w)
@@ -189,6 +167,21 @@ func searchMovies(w http.ResponseWriter, r *http.Request) {
 
 type index struct {
 	Index int `json:"index"`
+}
+
+type position struct {
+	Position int `json:"position"`
+}
+
+func seek(w http.ResponseWriter, r *http.Request) {
+	var entity position
+	parser := json.NewDecoder(r.Body)
+	var status api.PlayerStatus
+	var err error
+	if err = parser.Decode(&entity); err == nil {
+		status, err = playerService.Seek(entity.Position)
+	}
+	writeJsonResponse(status, err, w)
 }
 
 func selectAudio(w http.ResponseWriter, r *http.Request) {
@@ -211,6 +204,17 @@ func selectSubtitle(w http.ResponseWriter, r *http.Request) {
 		subtitles, err = playerService.SelectSubtitle(entity.Index)
 	}
 	writeJsonResponse(subtitles, err, w)
+}
+
+func setPosition(w http.ResponseWriter, r *http.Request) {
+	var entity position
+	parser := json.NewDecoder(r.Body)
+	var status api.PlayerStatus
+	var err error
+	if err = parser.Decode(&entity); err == nil {
+		status, err = playerService.SetPosition(entity.Position)
+	}
+	writeJsonResponse(status, err, w)
 }
 
 func status(w http.ResponseWriter, _ *http.Request) {

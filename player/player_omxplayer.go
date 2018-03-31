@@ -18,7 +18,7 @@ type OMXPlayer struct {
 	control *omxcontrol.OmxCtrl
 }
 
-var controlNotSetup = errors.New("omxplayer control is not setup")
+var controlNotSetup = errors.New("omxplayer does not play anything at the moment or control is not setup")
 
 func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
 	if p.control == nil {
@@ -27,14 +27,6 @@ func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
 		audios, err = p.control.AudioTracks()
 	}
 	return
-}
-
-func (p *OMXPlayer) Forward10m() error {
-	return p.action(omxcontrol.ActionSeekForwardLarge)
-}
-
-func (p *OMXPlayer) Forward30s() error {
-	return p.action(omxcontrol.ActionSeekForwardSmall)
 }
 
 func (p *OMXPlayer) Mute() (err error) {
@@ -107,12 +99,11 @@ func (p *OMXPlayer) ReplayCurrent() (err error) {
 	return
 }
 
-func (p *OMXPlayer) Rewind10m() error {
-	return p.action(omxcontrol.ActionSeekBackLarge)
-}
-
-func (p *OMXPlayer) Rewind30s() error {
-	return p.action(omxcontrol.ActionSeekBackSmall)
+func (p *OMXPlayer) Seek(offset time.Duration) error {
+	if p.control == nil {
+		return controlNotSetup
+	}
+	return p.control.Seek(offset)
 }
 
 func (p *OMXPlayer) SelectAudio(index int) (err error) {
@@ -137,6 +128,13 @@ func (p *OMXPlayer) SelectSubtitle(index int) (err error) {
 		}
 	}
 	return
+}
+
+func (p *OMXPlayer) SetPosition(position time.Duration) error {
+	if p.control == nil {
+		return controlNotSetup
+	}
+	return p.control.SetPosition(position)
 }
 
 func (p *OMXPlayer) Status() (status api.PlayerStatus, err error) {

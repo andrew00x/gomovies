@@ -4,6 +4,7 @@ import (
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/omxcontrol"
+	"time"
 )
 
 type Factory func(conf *config.Config) (Player, error)
@@ -20,8 +21,6 @@ func Create(conf *config.Config) (Player, error) {
 
 type Player interface {
 	AudioTracks() ([]omxcontrol.Stream, error)
-	Forward10m() error
-	Forward30s() error
 	Mute() error
 	NextAudioTrack() error
 	NextSubtitles() error
@@ -32,10 +31,10 @@ type Player interface {
 	PreviousAudioTrack() error
 	PreviousSubtitles() error
 	ReplayCurrent() error
-	Rewind10m() error
-	Rewind30s() error
+	Seek(offset time.Duration) error
 	SelectAudio(index int) error
 	SelectSubtitle(index int) error
+	SetPosition(position time.Duration) error
 	Status() (api.PlayerStatus, error)
 	Stop() error
 	Subtitles() ([]omxcontrol.Stream, error)
