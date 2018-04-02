@@ -2,7 +2,7 @@
 Web interface for [omxplayer](https://github.com/popcornmix/omxplayer)
 
 ## Pre-requirements
-Install omxd [omxplayer](https://github.com/popcornmix/omxplayer)
+Install [omxplayer](https://github.com/popcornmix/omxplayer)
 
 ## Configurations
 Create in directory *$HOME/.gomovies/* file *config.json* with following content:
@@ -34,4 +34,4 @@ Clone repository to your Go workspace and run:
 pi@raspberrypi:~$ go install github.com/andrew00x/gomovies
 ``` 
 And start it:
-```gomovies```
+```gomovies``` or ```nohup gomovies &```
