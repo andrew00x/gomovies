@@ -155,8 +155,8 @@ func mustSaveCatalogFile(idxMovies map[int]*MovieFile) {
 }
 
 func cleanupCatalog() {
-	indexFile := filepath.Join(testRoot, "catalog.json")
-	if err := os.Remove(indexFile); err != nil && !os.IsNotExist(err) {
+	catalogFile := filepath.Join(testRoot, "catalog.json")
+	if err := os.Remove(catalogFile); err != nil && !os.IsNotExist(err) {
 		panic(err)
 	}
 }

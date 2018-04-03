@@ -137,27 +137,36 @@ func readCatalog(f string) (map[int]*MovieFile, error) {
 }
 
 func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) error {
-	known := make(map[string]bool, len(files))
-	var maxId = 0
-	for id, f := range files {
-		known[f.Path] = true
-		if id > maxId {
-			maxId = id
-		}
-	}
-	idGen := newIdGenerator(maxId)
 	drives, err := mountedDrives()
 	if err != nil {
 		return err
 	}
+	known := make(map[string]bool, len(files))
+	var maxId = 0
+	for id, f := range files {
+		fileDriveUnmounted := !driveMounted(drives, f)
+		if exists, err := file.Exists(f.Path); err == nil && (exists || fileDriveUnmounted) {
+			known[f.Path] = true
+			if id > maxId {
+				maxId = id
+			}
+		} else {
+			delete(files, id)
+		}
+	}
+	idGen := newIdGenerator(maxId)
 	for _, dir := range dirs {
 		if exists, err := file.Exists(dir); exists && err == nil {
 			filepath.Walk(dir, func(path string, fInfo os.FileInfo, err error) error {
 				if !known[path] && fInfo.Mode().IsRegular() && util.Contains(fileExt, filepath.Ext(fInfo.Name())) {
 					id := idGen.next()
 					title := fInfo.Name()
-					drive := driveName(drives, path)
-					files[id] = &MovieFile{Id: id, Path: path, Title: title, DriveName: drive}
+					drive := fileDrive(drives, path)
+					driveName := ""
+					if drive != nil {
+						driveName = drive.name
+					}
+					files[id] = &MovieFile{Id: id, Path: path, Title: title, DriveName: driveName}
 					log.Printf("Add file '%s' to catalog\n", path)
 				}
 				return nil
@@ -167,13 +176,21 @@ func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) er
 	return nil
 }
 
-func driveName(drives []*drive, file string) string {
+func fileDrive(drives []*drive, file string) *drive {
+	return findDrive(drives, func(d *drive) bool { return strings.HasPrefix(file, d.mountPoint) })
+}
+
+func driveMounted(drives []*drive, f *MovieFile) bool {
+	return findDrive(drives, func(d *drive) bool { return d.name == f.DriveName }) != nil
+}
+
+func findDrive(drives []*drive, predicate func(*drive) bool) *drive {
 	for _, drive := range drives {
-		if strings.HasPrefix(file, drive.mountPoint) {
-			return drive.name
+		if predicate(drive) {
+			return drive
 		}
 	}
-	return ""
+	return nil
 }
 
 func mountedDrives() ([]*drive, error) {
