@@ -8,6 +8,13 @@ import (
 	"encoding/json"
 )
 
+type ById []MovieFile
+
+func (m ById) Less(i, j int) bool { return m[i].Id < m[j].Id }
+func (m ById) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+func (m ById) Len() int           { return len(m) }
+
+
 func TestMain(m *testing.M) {
 	setup()
 	code := m.Run()
@@ -141,18 +148,28 @@ func mustCreateFile(dir string, name string) {
 	}
 }
 
-func mustSaveCatalogFile(idxMovies map[int]*MovieFile) {
-	f, err := os.OpenFile(filepath.Join(testRoot, "catalog.json"), os.O_WRONLY|os.O_CREATE, 0644)
+func mustSaveCatalogFile(movies []MovieFile) {
+	file, err := os.OpenFile(filepath.Join(testRoot, "catalog.json"), os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
 	}
-	encoder := json.NewEncoder(f)
-	encoder.Encode(idxMovies)
-	err = f.Close()
+	encoder := json.NewEncoder(file)
+	encoder.Encode(toMapWithIdAsKey(movies))
+	err = file.Close()
 	if err != nil {
 		panic(err)
 	}
 }
+
+func toMapWithIdAsKey(movies []MovieFile) map[int]MovieFile{
+	m := make(map[int]MovieFile, len(movies))
+	for _, f := range movies {
+		m[f.Id] = f
+	}
+	return m
+}
+
+
 
 func cleanupCatalog() {
 	catalogFile := filepath.Join(testRoot, "catalog.json")

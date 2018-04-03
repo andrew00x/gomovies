@@ -12,10 +12,10 @@ import (
 
 type PlayerService struct {
 	p   player.Player
-	ctl *catalog.Catalog
+	ctl catalog.Catalog
 }
 
-func CreatePlayerService(plr player.Player, ctl *catalog.Catalog) *PlayerService {
+func CreatePlayerService(plr player.Player, ctl catalog.Catalog) *PlayerService {
 	return &PlayerService{plr, ctl}
 }
 

@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("Could not read configuration: %v", err)
 	}
 
-	ctl, err := catalog.NewCatalog(conf)
+	ctl, err := catalog.Create(conf)
 	if err != nil {
 		log.Fatalf("Could not create catalog: %v", err)
 	}
@@ -58,6 +58,7 @@ func main() {
 	http.HandleFunc("/api/list", allMovies)
 	http.HandleFunc("/api/play", playMovie)
 	http.HandleFunc("/api/search", searchMovies)
+	http.HandleFunc("/api/refresh", refresh)
 	http.HandleFunc("/api/player/audios", audios)
 	http.HandleFunc("/api/player/mute", mute)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
@@ -158,6 +159,15 @@ func previousSubtitles(w http.ResponseWriter, _ *http.Request) {
 func replayCurrent(w http.ResponseWriter, _ *http.Request) {
 	status, err := playerService.ReplayCurrent()
 	writeJsonResponse(status, err, w)
+}
+
+func refresh(w http.ResponseWriter, _ *http.Request) {
+	var err error
+	conf, err = config.LoadConfig()
+	if err == nil {
+		catalogService.Refresh(conf)
+	}
+	writeJsonResponse(nil, err, w)
 }
 
 func searchMovies(w http.ResponseWriter, r *http.Request) {

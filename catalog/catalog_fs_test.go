@@ -2,52 +2,56 @@ package catalog
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"os"
 	"testing"
+	"sort"
 	"github.com/andrew00x/gomovies/config"
 )
 
 func TestLoadCatalog(t *testing.T) {
 	cleanupCatalog()
-	expected := make(map[int]*MovieFile, len(movieFiles))
+	expected := make([]MovieFile, 0, len(movieFiles))
 	var id = 0
 	for _, path := range movieFiles {
 		id++
-		expected[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
+		expected = append(expected, MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId})
 	}
 	mustSaveCatalogFile(expected)
 
 	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json")}
-	catalog, err := NewCatalog(conf)
+	catalog, err := Create(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
-	if !reflect.DeepEqual(expected, catalog.movies) {
-		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, catalog.movies)
+	result := catalog.All()
+	sort.Sort(ById(result))
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, result)
 	}
 }
-
 func TestCreatedNewCatalog(t *testing.T) {
 	cleanupCatalog()
 
-	expected := make(map[int]*MovieFile, len(movieFiles))
+	expected := make([]MovieFile, 0, len(movieFiles))
 	var id = 0
 	for _, path := range movieFiles {
 		id++
-		expected[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
+		expected = append(expected, MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId})
 	}
 
 	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := NewCatalog(conf)
+	catalog, err := Create(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
 
-	if !reflect.DeepEqual(expected, catalog.movies) {
-		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, catalog.movies)
+	result := catalog.All()
+	sort.Sort(ById(result))
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, result)
 	}
 }
 
@@ -58,25 +62,27 @@ func TestCreatedAndUpdateCatalog(t *testing.T) {
 		os.Remove(filepath.Join(testRoot, "movies", "xxx.mkv"))
 	}()
 
-	var id = 1000
-	expected := map[int]*MovieFile{
-		id: {Id: id, Title: "xxx.mkv", Path: filepath.Join(testRoot, "movies", "xxx.mkv"), DriveName: "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"},
+	var id = 0
+	expected := []MovieFile{
+		{Id: id, Title: "xxx.mkv", Path: filepath.Join(testRoot, "movies", "xxx.mkv"), DriveName: "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"},
 	}
 	mustSaveCatalogFile(expected)
 
 	for _, path := range movieFiles {
 		id++
-		expected[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
+		expected = append(expected, MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId})
 	}
 
 	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := NewCatalog(conf)
+	catalog, err := Create(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
 
-	if !reflect.DeepEqual(expected, catalog.movies) {
-		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, catalog.movies)
+	result := catalog.All()
+	sort.Sort(ById(result))
+	if !reflect.DeepEqual(expected, result) {
+		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, result)
 	}
 }
 
@@ -84,11 +90,11 @@ func TestSaveCatalog(t *testing.T) {
 	cleanupCatalog()
 
 	movies := map[int]*MovieFile{
-		1000: {Id: 1000, Title: "xxx.mkv", Path: filepath.Join(testRoot, "movies", "xxx.mkv"), DriveName: "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"},
-		1001: {Id: 1001, Title: "yyy.avi", Path: filepath.Join(testRoot, "movies", "yyy.avi"), DriveName: "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"},
+		1: {Id: 1, Title: "xxx.mkv", Path: filepath.Join(testRoot, "movies", "xxx.mkv"), DriveName: "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"},
+		2: {Id: 2, Title: "yyy.avi", Path: filepath.Join(testRoot, "movies", "yyy.avi"), DriveName: "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"},
 	}
 	catalogFile := filepath.Join(testRoot, "catalog.json")
-	catalog := &Catalog{movies: movies, catalogFile: catalogFile}
+	catalog := &FSCatalog{movies: movies, catalogFile: catalogFile}
 	catalog.Save()
 
 	f, err := os.Open(catalogFile)
@@ -108,64 +114,29 @@ func TestSaveCatalog(t *testing.T) {
 func TestFindByNameInCatalog(t *testing.T) {
 	cleanupCatalog()
 
-	var id = 7001
-	all := make(map[int]*MovieFile, len(movieFiles))
+	var id = 0
+	all := make([]MovieFile, 0, len(movieFiles))
 	for _, path := range movieFiles {
 		id++
-		all[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
+		all = append(all, MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId})
 	}
 	mustSaveCatalogFile(all)
 
 	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := NewCatalog(conf)
+	catalog, err := Create(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
 
-	expected := make(map[int]MovieFile)
+	expected := make([]MovieFile, 0, 2)
 	for _, m := range all {
 		if strings.Contains(m.Title, "mkv") {
-			expected[m.Id] = *m
+			expected = append(expected, m)
 		}
 	}
 
-	result := make(map[int]MovieFile)
-	for _, m := range catalog.Find("mkV") {
-		result[m.Id] = m
-	}
-
-	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, result)
-	}
-}
-
-func TestGetAllInCatalog(t *testing.T) {
-	cleanupCatalog()
-
-	var id = 9001
-	all := make(map[int]*MovieFile, len(movieFiles))
-	for _, path := range movieFiles {
-		id++
-		all[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
-	}
-	mustSaveCatalogFile(all)
-
-	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := NewCatalog(conf)
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
-
-	expected := make(map[int]MovieFile)
-	for _, m := range all {
-		expected[m.Id] = *m
-	}
-
-	result := make(map[int]MovieFile)
-	for _, m := range catalog.All() {
-		result[m.Id] = m
-	}
-
+	result := catalog.Find("mkV")
+	sort.Sort(ById(result))
 	if !reflect.DeepEqual(expected, result) {
 		t.Fatalf("Expected: %v\nbut actual is: %v\n", expected, result)
 	}
@@ -174,20 +145,20 @@ func TestGetAllInCatalog(t *testing.T) {
 func TestRemovesFromNonexistentFilesFromCatalog(t *testing.T) {
 	cleanupCatalog()
 
-	var id = 10000
-	all := make(map[int]*MovieFile, len(movieFiles))
+	var id = 0
+	all := make([]MovieFile, 0, len(movieFiles)+1)
 	for _, path := range movieFiles {
 		id++
-		all[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
+		all = append(all, MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId})
 	}
 	nonexistent := filepath.Join(testRoot, "movies", "x", "nonexistent.mkv")
 	id++
-	all[id] = &MovieFile{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: driveId}
+	all = append(all, MovieFile{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: driveId})
 
 	mustSaveCatalogFile(all)
 
 	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := NewCatalog(conf)
+	catalog, err := Create(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -202,25 +173,55 @@ func TestRemovesFromNonexistentFilesFromCatalog(t *testing.T) {
 func TestKeepsNonexistentFilesIfCorrespondedDriveIsUnmounted(t *testing.T) {
 	cleanupCatalog()
 
-	var id = 11000
-	all := make(map[int]*MovieFile, len(movieFiles))
+	var id = 0
+	all := make([]MovieFile, 0, len(movieFiles))
 	for _, path := range movieFiles {
 		id++
-		all[id] = &MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId}
+		all = append(all, MovieFile{Id: id, Path: path, Title: filepath.Base(path), DriveName: driveId})
 	}
 	nonexistent := filepath.Join(testRoot, "movies2", "x", "nonexistent.mkv")
 	id++
-	all[id] = &MovieFile{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"}
+	all = append(all, MovieFile{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"})
 
 	mustSaveCatalogFile(all)
 
 	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := NewCatalog(conf)
+	catalog, err := Create(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
 
-	if !reflect.DeepEqual(all, catalog.movies) {
-		t.Fatalf("Expected: %v\nbut actual is: %v\n", all, catalog.movies)
+	result := catalog.All()
+	sort.Sort(ById(result))
+	if !reflect.DeepEqual(all, result) {
+		t.Fatalf("Expected: %v\nbut actual is: %v\n", all, result)
+	}
+}
+
+func TestRefreshCatalog(t *testing.T) {
+	cleanupCatalog()
+
+	conf := &config.Config{CatalogFile: filepath.Join(testRoot, "catalog.json"), Dirs: []string{}, VideoFileExts: []string{".mkv", ".avi"}}
+	catalog, err := Create(conf)
+	if err != nil {
+		t.Fatalf("Unable create catalog: %v\n", err)
+	}
+
+	if len(catalog.All()) != 0 {
+		t.Fatal("catalog expected to be empty")
+	}
+
+	conf.Dirs = []string{testRoot}
+	catalog.Refresh(conf)
+
+	afterRefresh := catalog.All()
+	m := make(map[string]bool)
+	for _, f := range afterRefresh {
+		m[f.Path] = true
+	}
+	for _, f := range movieFiles {
+		if !m[f] {
+			t.Fatalf("file %s expected to be in catalog after refresh", f)
+		}
 	}
 }

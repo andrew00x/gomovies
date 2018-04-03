@@ -18,6 +18,12 @@ type OMXPlayer struct {
 	control *omxcontrol.OmxCtrl
 }
 
+func init() {
+	factory = func(conf *config.Config) (Player, error) {
+		return &OMXPlayer{}, nil
+	}
+}
+
 var controlNotSetup = errors.New("omxplayer does not play anything at the moment or control is not setup")
 
 func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
@@ -204,12 +210,6 @@ func (p *OMXPlayer) action(actionCode omxcontrol.KeyboardAction) error {
 		return controlNotSetup
 	}
 	return p.control.Action(actionCode)
-}
-
-func init() {
-	factory = func(conf *config.Config) (Player, error) {
-		return &OMXPlayer{}, nil
-	}
 }
 
 func (p *OMXPlayer) quit() (err error) {
