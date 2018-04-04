@@ -13,22 +13,15 @@ import (
 	"github.com/andrew00x/gomovies/util"
 )
 
-type MovieFile struct {
-	Id        int    `json:"id"`
-	Title     string `json:"title"`
-	Path      string `json:"path"`
-	DriveName string `json:"drive"`
-}
-
-type FSCatalog struct {
+type JsonCatalog struct {
 	refreshLock sync.Mutex
 	movies      map[int]*MovieFile
 	catalogFile string
-	index       *index
+	index       Index
 }
 
 type idGenerator struct {
-	v  int
+	v int
 }
 
 type drive struct {
@@ -43,24 +36,26 @@ var etccd string
 func init() {
 	devcd = "/dev"
 	etccd = "/etc"
-	factory = func(conf *config.Config) (Catalog, error) {
-		var err error
-		files, err := readCatalog(conf.CatalogFile)
-		if err != nil {
-			return nil, err
-		}
-		err = updateCatalog(files, conf.Dirs, conf.VideoFileExts)
-		if err != nil {
-			return nil, err
-		}
+	catalogFactory = newJsonCatalog
+}
 
-		idx := newIndex(len(files))
-		for _, m := range files {
-			idx.add(*m)
+func newJsonCatalog(conf *config.Config) (catalog Catalog, err error) {
+	var movies map[int]*MovieFile
+	movies, err = readCatalog(conf.CatalogFile)
+	if err == nil {
+		err = updateCatalog(movies, conf.Dirs, conf.VideoFileExts)
+		if err == nil {
+			var index Index
+			index, err = CreateIndex(conf)
+			if err == nil {
+				for _, m := range movies {
+					index.Add(*m)
+				}
+				catalog = &JsonCatalog{movies: movies, catalogFile: conf.CatalogFile, index: index}
+			}
 		}
-		catalog := &FSCatalog{movies: files, catalogFile: conf.CatalogFile, index: idx}
-		return catalog, nil
 	}
+	return
 }
 
 func newIdGenerator(v int) *idGenerator {
@@ -72,12 +67,12 @@ func (g *idGenerator) next() int {
 	return g.v
 }
 
-func (ctl *FSCatalog) Get(id int) *MovieFile {
+func (ctl *JsonCatalog) Get(id int) *MovieFile {
 	return ctl.movies[id]
 }
 
-func (ctl *FSCatalog) Find(title string) []MovieFile {
-	ids := ctl.index.find(title)
+func (ctl *JsonCatalog) Find(title string) []MovieFile {
+	ids := ctl.index.Find(title)
 	result := make([]MovieFile, 0, len(ids))
 	for _, id := range ids {
 		m := ctl.movies[id]
@@ -86,7 +81,7 @@ func (ctl *FSCatalog) Find(title string) []MovieFile {
 	return result
 }
 
-func (ctl *FSCatalog) All() []MovieFile {
+func (ctl *JsonCatalog) All() []MovieFile {
 	all := ctl.movies
 	result := make([]MovieFile, 0, len(all))
 	for _, m := range all {
@@ -95,7 +90,7 @@ func (ctl *FSCatalog) All() []MovieFile {
 	return result
 }
 
-func (ctl *FSCatalog) Save() (err error) {
+func (ctl *JsonCatalog) Save() (err error) {
 	f, err := os.OpenFile(ctl.catalogFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return
@@ -111,14 +106,15 @@ func (ctl *FSCatalog) Save() (err error) {
 	return
 }
 
-func (ctl *FSCatalog) Refresh(conf *config.Config) error {
+func (ctl *JsonCatalog) Refresh(conf *config.Config) error {
 	ctl.refreshLock.Lock()
 	defer ctl.refreshLock.Unlock()
 	err := updateCatalog(ctl.movies, conf.Dirs, conf.VideoFileExts)
 	if err == nil {
-		idx := newIndex(len(ctl.movies))
+		var idx Index
+		idx, err = CreateIndex(conf)
 		for _, m := range ctl.movies {
-			idx.add(*m)
+			idx.Add(*m)
 		}
 		ctl.index = idx
 		ctl.catalogFile = conf.CatalogFile

@@ -19,7 +19,7 @@ type OMXPlayer struct {
 }
 
 func init() {
-	factory = func(conf *config.Config) (Player, error) {
+	playerFactory = func(conf *config.Config) (Player, error) {
 		return &OMXPlayer{}, nil
 	}
 }

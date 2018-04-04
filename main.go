@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("Could not read configuration: %v", err)
 	}
 
-	ctl, err := catalog.Create(conf)
+	ctl, err := catalog.CreateCatalog(conf)
 	if err != nil {
 		log.Fatalf("Could not create catalog: %v", err)
 	}

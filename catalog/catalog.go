@@ -2,16 +2,19 @@ package catalog
 
 import "github.com/andrew00x/gomovies/config"
 
-type Factory func(*config.Config) (Catalog, error)
+type MovieFile struct {
+	Id        int    `json:"id"`
+	Title     string `json:"title"`
+	Path      string `json:"path"`
+	DriveName string `json:"drive"`
+}
 
-var factory Factory
+type CatalogFactory func(*config.Config) (Catalog, error)
 
-func Create(conf *config.Config) (Catalog, error) {
-	c, err := factory(conf)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
+var catalogFactory CatalogFactory
+
+func CreateCatalog(conf *config.Config) (Catalog, error) {
+	return catalogFactory(conf)
 }
 
 type Catalog interface {

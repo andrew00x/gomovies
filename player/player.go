@@ -7,16 +7,12 @@ import (
 	"time"
 )
 
-type Factory func(conf *config.Config) (Player, error)
+type PlayerFactory func(conf *config.Config) (Player, error)
 
-var factory Factory
+var playerFactory PlayerFactory
 
 func Create(conf *config.Config) (Player, error) {
-	p, err := factory(conf)
-	if err != nil {
-		return nil, err
-	}
-	return p, nil
+	return playerFactory(conf)
 }
 
 type Player interface {
