@@ -7,6 +7,7 @@ type MovieFile struct {
 	Title     string `json:"title"`
 	Path      string `json:"path"`
 	DriveName string `json:"drive"`
+	TMDbId    string `json:"tmdb_id"`
 }
 
 type CatalogFactory func(*config.Config) (Catalog, error)

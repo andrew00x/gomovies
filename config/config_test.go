@@ -35,10 +35,10 @@ func TestLoadConfig(t *testing.T) {
 	expectedDirs := []string{"/home/andrew/movies"}
 	expectedVideoFileExts := []string{"mkv", "avi"}
 	if !reflect.DeepEqual(config.Dirs, expectedDirs) {
-		t.Fatalf("Expected dirs %v, got %v", expectedDirs, config.Dirs)
+		t.Fatalf("Expected dirs %+v, got %+v", expectedDirs, config.Dirs)
 	}
 	if !reflect.DeepEqual(config.VideoFileExts, expectedVideoFileExts) {
-		t.Fatalf("Expected video file extensions %v, got %v", expectedVideoFileExts, config.VideoFileExts)
+		t.Fatalf("Expected video file extensions %+v, got %+v", expectedVideoFileExts, config.VideoFileExts)
 	}
 }
 

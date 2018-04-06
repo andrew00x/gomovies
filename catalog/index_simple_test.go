@@ -20,7 +20,7 @@ func TestAddMovieInIndex(t *testing.T) {
 		"fight club.mkv": 2,
 	}
 	if !reflect.DeepEqual(expected, index.idx) {
-		t.Fatalf("expected index is: %v, but actuals is: %v", expected, index.idx)
+		t.Fatalf("expected index is: %+v, but actuals is: %+v", expected, index.idx)
 	}
 }
 
@@ -38,7 +38,7 @@ func TestFindMovieInIndex(t *testing.T) {
 	result := index.Find("Futur")
 	sort.Ints(result)
 	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("expected index is: %v, but actuals is: %v", expected, result)
+		t.Fatalf("expected index is: %+v, but actuals is: %+v", expected, result)
 	}
 }
 
@@ -56,6 +56,6 @@ func TestFindMovieInIndexIgnoringCase(t *testing.T) {
 	result := index.Find("hoUr")
 	sort.Ints(result)
 	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("expected index is: %v, but actuals is: %v", expected, result)
+		t.Fatalf("expected index is: %+v, but actuals is: %+v", expected, result)
 	}
 }

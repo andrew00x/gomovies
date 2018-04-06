@@ -47,13 +47,13 @@ func TestLoadCatalog(t *testing.T) {
 	result := catalog.All()
 	sort.Sort(byId(result))
 	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %v\nbut actual : %v\n", movies, result)
+		t.Fatalf("Expected catalog items: %+v\nbut actual : %+v\n", movies, result)
 	}
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
 	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected to added in index: %v\nbut actual: %v\n", movies, indexed)
+		t.Fatalf("Expected to added in index: %+v\nbut actual: %+v\n", movies, indexed)
 	}
 }
 
@@ -87,13 +87,13 @@ func TestCreatedNewCatalog(t *testing.T) {
 	result := catalog.All()
 	sort.Sort(byId(result))
 	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %v\nbut actual: %v\n", movies, result)
+		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
 	}
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
 	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected to added in index: %v\nbut actual: %v\n", movies, indexed)
+		t.Fatalf("Expected to added in index: %+v\nbut actual: %+v\n", movies, indexed)
 	}
 }
 
@@ -133,13 +133,13 @@ func TestCreatedAndUpdateCatalog(t *testing.T) {
 	result := catalog.All()
 	sort.Sort(byId(result))
 	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %v\nbut actual: %v\n", movies, result)
+		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
 	}
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
 	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected to added in index: %v\nbut actual: %v\n", movies, indexed)
+		t.Fatalf("Expected to added in index: %+v\nbut actual: %+v\n", movies, indexed)
 	}
 }
 
@@ -169,7 +169,7 @@ func TestSaveCatalog(t *testing.T) {
 	parser.Decode(&saved)
 
 	if !reflect.DeepEqual(movies, saved) {
-		t.Fatalf("Expected catalog items: %v\nbut actual: %v\n", movies, saved)
+		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, saved)
 	}
 }
 
@@ -194,7 +194,7 @@ func TestFindByNameInCatalog(t *testing.T) {
 
 	expected := []MovieFile{*movies[1], *movies[3]}
 	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Expected to find items: %v\nbut actual: %v\n", movies, result)
+		t.Fatalf("Expected to find items: %+v\nbut actual: %+v\n", movies, result)
 	}
 }
 
@@ -226,13 +226,13 @@ func TestRemovesFromNonexistentFilesFromCatalog(t *testing.T) {
 	result := catalog.All()
 	expected := []MovieFile{movies[0]}
 	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Expected catalog items: %v\nbut actual: %v\n", expected, result)
+		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", expected, result)
 	}
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
 	if !reflect.DeepEqual(expected, indexed) {
-		t.Fatalf("Expected items in index: %v\nbut actual: %v\n", movies, indexed)
+		t.Fatalf("Expected items in index: %+v\nbut actual: %+v\n", movies, indexed)
 	}
 }
 
@@ -269,13 +269,13 @@ func TestKeepsNonexistentFilesIfCorrespondedDriveIsUnmounted(t *testing.T) {
 	result := catalog.All()
 	sort.Sort(byId(result))
 	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %v\nbut actual: %v\n", movies, result)
+		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
 	}
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
 	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected items in index: %v\nbut actual: %v\n", movies, indexed)
+		t.Fatalf("Expected items in index: %+v\nbut actual: %+v\n", movies, indexed)
 	}
 }
 
@@ -308,7 +308,7 @@ func TestRefreshCatalog(t *testing.T) {
 	result := catalog.All()
 	sort.Sort(byId(result))
 	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %v\nbut actual: %v\n", movies, result)
+		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
 	}
 
 	conf.Dirs = []string{moviesDir}
@@ -325,13 +325,13 @@ func TestRefreshCatalog(t *testing.T) {
 	result = catalog.All()
 	sort.Sort(byId(result))
 	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items after refresh: %v\nbut actual: %v\n", movies, result)
+		t.Fatalf("Expected catalog items after refresh: %+v\nbut actual: %+v\n", movies, result)
 	}
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
 	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected items in index: %v\nbut actual: %v\n", movies, indexed)
+		t.Fatalf("Expected items in index: %+v\nbut actual: %+v\n", movies, indexed)
 	}
 }
 
