@@ -229,19 +229,17 @@ func (p *OMXPlayer) quit() (err error) {
 func setupControl() (control *omxcontrol.OmxCtrl, err error) {
 	attempts := 50
 	retryDelay := time.Duration(100) * time.Millisecond
-	control, err = omxcontrol.Create()
-	if err == nil {
-		var ready bool
-		for i := 1; ; i++ {
-			ready, err = control.CanControl()
-			if err == nil && ready {
-				log.Printf("setup omxplayer control after %d attempts\n", i)
-				return
-			}
-			if i > attempts {
-				break
-			}
-			time.Sleep(retryDelay)
+	var ready bool
+	for i := 1; ; i++ {
+		time.Sleep(retryDelay)
+		control, err = omxcontrol.Create()
+		ready, err = control.CanControl()
+		if err == nil && ready {
+			log.Printf("setup omxplayer control after %d attempts\n", i)
+			return
+		}
+		if i > attempts {
+			break
 		}
 	}
 	err = errors.New(fmt.Sprintf("unable setup omxplayer control after %d attempts, last error: %v", attempts, err))
