@@ -6,20 +6,24 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfigDirPathNonEmpty(t *testing.T) {
 	configDir := ConfDir()
-	if configDir == "" {
-		t.Fatal("Returned config path directory is empty")
-	}
+	assert.NotEmpty(t, configDir)
 }
 
 func TestConfigDirIsAbsolute(t *testing.T) {
 	configDir := ConfDir()
-	if !filepath.IsAbs(configDir) {
-		t.Fatalf("Returned path is not absolute: %s", configDir)
-	}
+	assert.True(t, filepath.IsAbs(configDir))
+}
+
+func TestConfigureConfigDirWithEnvVariable(t *testing.T) {
+	dir := filepath.Join(os.Getenv("TMPDIR"), "somewhere")
+	os.Setenv("GO_MOVIES_HOME", dir)
+	configDir := ConfDir()
+	assert.Equal(t, dir, configDir)
 }
 
 func TestLoadConfig(t *testing.T) {

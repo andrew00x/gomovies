@@ -39,7 +39,7 @@ func TestLoadCatalog(t *testing.T) {
 	index := indexMock{[]MovieFile{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	catalog, err := newJsonCatalog(&config.Config{CatalogFile: catalogFile})
+	catalog, err := createJsonCatalog(&config.Config{})
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -78,8 +78,8 @@ func TestCreatedNewCatalog(t *testing.T) {
 	index := indexMock{[]MovieFile{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{CatalogFile: catalogFile, Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := newJsonCatalog(conf)
+	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
+	catalog, err := createJsonCatalog(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -124,8 +124,8 @@ func TestCreatedAndUpdateCatalog(t *testing.T) {
 	index := indexMock{[]MovieFile{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{CatalogFile: catalogFile, Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := newJsonCatalog(conf)
+	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
+	catalog, err := createJsonCatalog(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -156,7 +156,7 @@ func TestSaveCatalog(t *testing.T) {
 		movies[id] = &MovieFile{Id: id, Title: filepath.Base(f), Path: f, DriveName: driveId}
 		id++
 	}
-	catalog := &JsonCatalog{movies: movies, catalogFile: catalogFile}
+	catalog := &JsonCatalog{movies: movies}
 	catalog.Save()
 
 	f, err := os.Open(catalogFile)
@@ -188,7 +188,7 @@ func TestFindByNameInCatalog(t *testing.T) {
 	}
 
 	index := indexMock{added: []MovieFile{}, found: []int{1, 3}}
-	catalog := &JsonCatalog{catalogFile: catalogFile, movies: movies, index: &index}
+	catalog := &JsonCatalog{movies: movies, index: &index}
 
 	result := catalog.Find("whatever we have in index")
 
@@ -217,8 +217,8 @@ func TestRemovesFromNonexistentFilesFromCatalog(t *testing.T) {
 	index := indexMock{[]MovieFile{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{CatalogFile: catalogFile, Dirs: []string{moviesDir}, VideoFileExts: []string{".avi"}}
-	catalog, err := newJsonCatalog(conf)
+	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".avi"}}
+	catalog, err := createJsonCatalog(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -260,8 +260,8 @@ func TestKeepsNonexistentFilesIfCorrespondedDriveIsUnmounted(t *testing.T) {
 	index := indexMock{[]MovieFile{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{CatalogFile: catalogFile, Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := newJsonCatalog(conf)
+	conf := &config.Config{Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
+	catalog, err := createJsonCatalog(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -299,8 +299,8 @@ func TestRefreshCatalog(t *testing.T) {
 	index := indexMock{[]MovieFile{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{CatalogFile: catalogFile, Dirs: []string{}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := newJsonCatalog(conf)
+	conf := &config.Config{Dirs: []string{}, VideoFileExts: []string{".mkv", ".avi"}}
+	catalog, err := createJsonCatalog(conf)
 	if err != nil {
 		t.Fatalf("Unable create catalog: %v\n", err)
 	}
@@ -342,7 +342,6 @@ func (m byId) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
 func (m byId) Len() int           { return len(m) }
 
 var moviesDir string
-var catalogFile string
 var driveId = "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0-part1"
 
 var testRoot string

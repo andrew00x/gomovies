@@ -7,7 +7,6 @@ import (
 )
 
 type Config struct {
-	CatalogFile   string   `json:"catalog_file"`
 	Dirs          []string `json:"dirs"`
 	VideoFileExts []string `json:"video_file_exts"`
 	WebDir        string   `json:"web_dir"`
@@ -32,13 +31,13 @@ func loadConfig(path string) (*Config, error) {
 	if conf.WebPort == 0 {
 		conf.WebPort = 8000
 	}
-	if conf.CatalogFile == "" {
-		conf.CatalogFile = filepath.Join(filepath.Dir(path), "catalog.json")
-	}
 	return &conf, nil
 }
 
 func ConfDir() string {
-	home := os.Getenv("HOME")
-	return filepath.Join(home, ".gomovies")
+	confDir := os.Getenv("GO_MOVIES_HOME")
+	if confDir == "" {
+		confDir = filepath.Join(os.Getenv("HOME"), ".gomovies")
+	}
+	return confDir
 }

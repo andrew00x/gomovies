@@ -2,63 +2,43 @@ package catalog
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sync"
-	"strings"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/file"
 	"github.com/andrew00x/gomovies/util"
 )
 
 type JsonCatalog struct {
-	refreshLock sync.Mutex
-	movies      map[int]*MovieFile
-	catalogFile string
-	index       Index
+	mu     sync.RWMutex
+	movies map[int]*MovieFile
+	config *config.Config
+	index  Index
 }
 
 type idGenerator struct {
 	v int
 }
 
-type drive struct {
-	devSpec    string
-	mountPoint string
-	name       string
-}
-
-var devcd string
-var etccd string
+var catalogFile string
 
 func init() {
-	devcd = "/dev"
-	etccd = "/etc"
-	catalogFactory = newJsonCatalog
+	catalogFile = filepath.Join(config.ConfDir(), "catalog.json")
+	catalogFactory = createJsonCatalog
 }
 
-func newJsonCatalog(conf *config.Config) (catalog Catalog, err error) {
-	var movies map[int]*MovieFile
-	movies, err = readCatalog(conf.CatalogFile)
-	if err == nil {
-		err = updateCatalog(movies, conf.Dirs, conf.VideoFileExts)
-		if err == nil {
-			var index Index
-			index, err = CreateIndex(conf)
-			if err == nil {
-				for _, m := range movies {
-					index.Add(*m)
-				}
-				catalog = &JsonCatalog{movies: movies, catalogFile: conf.CatalogFile, index: index}
-			}
-		}
+func createJsonCatalog(conf *config.Config) (Catalog, error) {
+	catalog := &JsonCatalog{config: conf}
+	err := catalog.Load()
+	if err != nil {
+		return nil, err
 	}
-	return
+	return catalog, nil
 }
 
-func newIdGenerator(v int) *idGenerator {
+func createIdGenerator(v int) *idGenerator {
 	return &idGenerator{v: v}
 }
 
@@ -67,11 +47,20 @@ func (g *idGenerator) next() int {
 	return g.v
 }
 
-func (ctl *JsonCatalog) Get(id int) *MovieFile {
-	return ctl.movies[id]
+func (ctl *JsonCatalog) All() []MovieFile {
+	ctl.mu.RLock()
+	defer ctl.mu.RUnlock()
+	all := ctl.movies
+	result := make([]MovieFile, 0, len(all))
+	for _, m := range all {
+		result = append(result, *m)
+	}
+	return result
 }
 
 func (ctl *JsonCatalog) Find(title string) []MovieFile {
+	ctl.mu.RLock()
+	defer ctl.mu.RUnlock()
 	ids := ctl.index.Find(title)
 	result := make([]MovieFile, 0, len(ids))
 	for _, id := range ids {
@@ -81,17 +70,44 @@ func (ctl *JsonCatalog) Find(title string) []MovieFile {
 	return result
 }
 
-func (ctl *JsonCatalog) All() []MovieFile {
-	all := ctl.movies
-	result := make([]MovieFile, 0, len(all))
-	for _, m := range all {
-		result = append(result, *m)
+func (ctl *JsonCatalog) Get(id int) *MovieFile {
+	ctl.mu.RLock()
+	defer ctl.mu.RUnlock()
+	return ctl.movies[id]
+}
+
+func (ctl *JsonCatalog) Load() error {
+	ctl.mu.Lock()
+	defer ctl.mu.Unlock()
+	movies, err := readCatalog(catalogFile)
+	if err != nil {
+		return err
 	}
-	return result
+	err = updateCatalog(movies, ctl.config.Dirs, ctl.config.VideoFileExts)
+	if err != nil {
+		return err
+	}
+	index, err := CreateIndex(ctl.config)
+	if err != nil {
+		return err
+	}
+	for _, m := range movies {
+		index.Add(*m)
+	}
+	ctl.movies = movies
+	ctl.index = index
+	return nil
+}
+
+func (ctl *JsonCatalog) Refresh(conf *config.Config) error {
+	ctl.config = conf
+	return ctl.Load()
 }
 
 func (ctl *JsonCatalog) Save() (err error) {
-	f, err := os.OpenFile(ctl.catalogFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	ctl.mu.Lock()
+	defer ctl.mu.Unlock()
+	f, err := os.OpenFile(catalogFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return
 	}
@@ -106,28 +122,11 @@ func (ctl *JsonCatalog) Save() (err error) {
 	return
 }
 
-func (ctl *JsonCatalog) Refresh(conf *config.Config) error {
-	ctl.refreshLock.Lock()
-	defer ctl.refreshLock.Unlock()
-	err := updateCatalog(ctl.movies, conf.Dirs, conf.VideoFileExts)
-	if err == nil {
-		var idx Index
-		idx, err = CreateIndex(conf)
-		for _, m := range ctl.movies {
-			idx.Add(*m)
-		}
-		ctl.index = idx
-		ctl.catalogFile = conf.CatalogFile
-	}
-
-	return err
-}
-
-func readCatalog(f string) (map[int]*MovieFile, error) {
+func readCatalog(catalogFile string) (map[int]*MovieFile, error) {
 	var err error
 	var catalogExists bool
-	if catalogExists, err = file.Exists(f); catalogExists && err == nil {
-		catalog, err := os.OpenFile(f, os.O_RDONLY, 0644)
+	if catalogExists, err = file.Exists(catalogFile); catalogExists && err == nil {
+		catalog, err := os.OpenFile(catalogFile, os.O_RDONLY, 0644)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +162,7 @@ func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) er
 			delete(files, id)
 		}
 	}
-	idGen := newIdGenerator(maxId)
+	idGen := createIdGenerator(maxId)
 	for _, dir := range dirs {
 		if exists, err := file.Exists(dir); exists && err == nil {
 			filepath.Walk(dir, func(path string, fInfo os.FileInfo, err error) error {
@@ -183,106 +182,4 @@ func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) er
 		}
 	}
 	return nil
-}
-
-func fileDrive(drives []*drive, file string) *drive {
-	return findDrive(drives, func(d *drive) bool { return strings.HasPrefix(file, d.mountPoint) })
-}
-
-func driveMounted(drives []*drive, f *MovieFile) bool {
-	return findDrive(drives, func(d *drive) bool { return d.name == f.DriveName }) != nil
-}
-
-func findDrive(drives []*drive, predicate func(*drive) bool) *drive {
-	for _, drive := range drives {
-		if predicate(drive) {
-			return drive
-		}
-	}
-	return nil
-}
-
-func mountedDrives() ([]*drive, error) {
-	drives := make(map[string]*drive)
-
-	err := drivesByLabel(drives)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	err = drivesById(drives)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	err = setMountPoints(drives)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	mounted := make([]*drive, 0, len(drives))
-	for _, drive := range drives {
-		if drive.mountPoint != "" {
-			mounted = append(mounted, drive)
-		}
-	}
-
-	return mounted, nil
-}
-
-func drivesByLabel(drives map[string]*drive) error {
-	byLabelDir := filepath.Join(devcd, "disk", "by-label")
-	disksByLabel, err := ioutil.ReadDir(byLabelDir)
-	if err != nil {
-		return err
-	}
-	for _, link := range disksByLabel {
-		label := link.Name()
-		devFile, err := os.Readlink(filepath.Join(byLabelDir, label))
-		if err != nil {
-			return err
-		}
-		devName := filepath.Base(devFile)
-		drives[devName] = &drive{
-			devSpec: filepath.Join(devcd, devName),
-			name:    label}
-	}
-	return nil
-}
-
-func drivesById(drives map[string]*drive) error {
-	byIdDir := filepath.Join(devcd, "disk", "by-id")
-
-	disksById, err := ioutil.ReadDir(byIdDir)
-	if err != nil {
-		return err
-	}
-	for _, link := range disksById {
-		id := link.Name()
-		devFile, err := os.Readlink(filepath.Join(byIdDir, id))
-		if err != nil {
-			return err
-		}
-		devName := filepath.Base(devFile)
-		_, ok := drives[devName]
-		if !ok {
-			drives[devName] = &drive{
-				devSpec: filepath.Join(devcd, devName),
-				name:    id}
-		}
-	}
-	return nil
-}
-
-func setMountPoints(drives map[string]*drive) error {
-	mtab := filepath.Join(etccd, "mtab")
-	return file.ReadLines(mtab, func(line string) bool {
-		fields := strings.Fields(line)
-		devName := filepath.Base(fields[0])
-		drive, ok := drives[devName]
-		if ok {
-			drive.mountPoint = fields[1]
-		}
-		return true
-	})
 }

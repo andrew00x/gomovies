@@ -43,11 +43,13 @@ func main() {
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 	log.Printf("Starting on port: %d\n", conf.WebPort)
 	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, os.Kill)
 	go func() {
 		<-quit
 		if err := catalogService.Stop(); err != nil {
 			log.Printf("Unable save catalog file: %v\n", err)
+		} else {
+			log.Println("Save catalog file")
 		}
 		if err := web.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not shutdown: %v", err)

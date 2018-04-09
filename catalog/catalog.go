@@ -19,9 +19,10 @@ func CreateCatalog(conf *config.Config) (Catalog, error) {
 }
 
 type Catalog interface {
-	Get(id int) *MovieFile
-	Find(title string) []MovieFile
 	All() []MovieFile
-	Save() error
+	Find(title string) []MovieFile
+	Get(id int) *MovieFile
+	Load() error
 	Refresh(conf *config.Config) error
+	Save() error
 }
