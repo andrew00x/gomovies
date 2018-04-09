@@ -8,6 +8,7 @@ import (
 	"os"
 	"net/http"
 	"os/signal"
+	"syscall"
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/service"
@@ -43,7 +44,7 @@ func main() {
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 	log.Printf("Starting on port: %d\n", conf.WebPort)
 	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt, os.Kill)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP)
 	go func() {
 		<-quit
 		if err := catalogService.Stop(); err != nil {
