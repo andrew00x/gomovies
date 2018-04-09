@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -89,10 +90,11 @@ func init() {
 	clientFactory = func() apiClient { return &defaultApiClient{} }
 }
 
-type TMDb struct {
-	mu     sync.Mutex
-	apiKey string
-	client apiClient
+type TmDb struct {
+	mu                sync.Mutex
+	apiKey            string
+	client            apiClient
+	movieDetailsCache *cache
 }
 
 type apiClientFactory func() apiClient
@@ -105,32 +107,36 @@ func (*defaultApiClient) get(reqUrl string) (*http.Response, error) {
 	return http.Get(reqUrl)
 }
 
-func Create(apiKey string) *TMDb {
-	return &TMDb{apiKey: apiKey, client: clientFactory()}
+func createTmDb(apiKey string) *TmDb {
+	return &TmDb{apiKey: apiKey, client: clientFactory(), movieDetailsCache: createCache()}
 }
 
-func (tmdb *TMDb) GetConfiguration() (Configuration, error) {
+func (tmdb *TmDb) GetConfiguration() (Configuration, error) {
 	reqUrl := fmt.Sprintf("%s/configuration?api_key=%s", baseUrl, tmdb.apiKey)
 	config := Configuration{}
 	_, err := tmdb.sendRequest(reqUrl, &config)
 	return config, err
 }
 
-func (tmdb *TMDb) SearchMovies(query string, page int) (MovieSearchResult, error) {
+func (tmdb *TmDb) SearchMovies(query string, page int) (MovieSearchResult, error) {
 	reqUrl := fmt.Sprintf("%s/search/movie?api_key=%s&query=%s&page=%d", baseUrl, tmdb.apiKey, url.QueryEscape(query), page)
 	result := MovieSearchResult{}
 	_, err := tmdb.sendRequest(reqUrl, &result)
 	return result, err
 }
 
-func (tmdb *TMDb) GetMovie(id int) (MovieDetails, error) {
-	reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, id, tmdb.apiKey)
-	mov := MovieDetails{}
-	_, err := tmdb.sendRequest(reqUrl, &mov)
-	return mov, err
+func (tmdb *TmDb) GetMovie(id int) (MovieDetails, error) {
+	res, err := tmdb.movieDetailsCache.getOrLoad(id, func(k key) (interface{}, error) {
+		reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, id, tmdb.apiKey)
+		mov := MovieDetails{}
+		_, err := tmdb.sendRequest(reqUrl, &mov)
+		log.Printf("Retrieve movie details from TMDb, movie id: %d, error: %v\n", id, err)
+		return mov, err
+	})
+	return res.(MovieDetails), err
 }
 
-func (tmdb *TMDb) sendRequest(reqUrl string, payload interface{}) (interface{}, error) {
+func (tmdb *TmDb) sendRequest(reqUrl string, payload interface{}) (interface{}, error) {
 	tmdb.mu.Lock()
 	defer tmdb.mu.Unlock()
 	resp, err := tmdb.client.get(reqUrl)

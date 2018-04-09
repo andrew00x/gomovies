@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
+	"github.com/stretchr/testify/assert"
 )
 
 const fakeApiKey = "123"
@@ -40,7 +40,7 @@ func TestGetConfiguration(t *testing.T) {
 		}
 		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
 	}
-	tmdb := Create(fakeApiKey)
+	tmdb := createTmDb(fakeApiKey)
 	result, err := tmdb.GetConfiguration()
 	if err != nil {
 		t.Fatal(err)
@@ -55,9 +55,7 @@ func TestGetConfiguration(t *testing.T) {
 			ProfileSizes:  []string{"f1", "f2", "f3", "original"},
 			StillSizes:    []string{"s1", "s2", "s3", "original"},
 		}}
-	if !reflect.DeepEqual(expectedResult, result) {
-		t.Fatalf("expected response: %+v,\nbut was: %+v", expectedResult, result)
-	}
+	assert.Equal(t, expectedResult, result)
 }
 
 func TestSearchMovie(t *testing.T) {
@@ -69,7 +67,7 @@ func TestSearchMovie(t *testing.T) {
 		}
 		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
 	}
-	tmdb := Create(fakeApiKey)
+	tmdb := createTmDb(fakeApiKey)
 	result, err := tmdb.SearchMovies("brave heart", 1)
 	if err != nil {
 		t.Fatal(err)
@@ -89,9 +87,7 @@ func TestSearchMovie(t *testing.T) {
 			BackdropPath:     "/braveheart_backdrop.jpg",
 		}},
 	}
-	if !reflect.DeepEqual(expectedResult, result) {
-		t.Fatalf("expected response: %+v,\nbut was: %+v", expectedResult, result)
-	}
+	assert.Equal(t, expectedResult, result)
 }
 
 func TestGetMovie(t *testing.T) {
@@ -103,7 +99,7 @@ func TestGetMovie(t *testing.T) {
 		}
 		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
 	}
-	tmdb := Create(fakeApiKey)
+	tmdb := createTmDb(fakeApiKey)
 	result, err := tmdb.GetMovie(123)
 	if err != nil {
 		t.Fatal(err)
@@ -134,24 +130,20 @@ func TestGetMovie(t *testing.T) {
 			{Code: "US", Name: "USA"},
 		},
 	}
-	if !reflect.DeepEqual(expectedResult, result) {
-		t.Fatalf("expected response: %+v,\nbut was: %+v", expectedResult, result)
-	}
+	assert.Equal(t, expectedResult, result)
 }
 
 func TestHandleApiErrorStatus(t *testing.T) {
 	doGetFunc = func(reqUrl string) (*http.Response, error) {
 		return &http.Response{StatusCode: 400, Body: ioutil.NopCloser(strings.NewReader(apiErrorResponse))}, nil
 	}
-	tmdb := Create(fakeApiKey)
+	tmdb := createTmDb(fakeApiKey)
 	_, err := tmdb.GetMovie(0)
 	if err == nil {
 		t.Fatal("error expected")
 	}
 	expectedErrorMessage := fmt.Sprintf("error: %s, code: %d", "Invalid movie id", 1)
-	if err.Error() != expectedErrorMessage {
-		t.Fatalf("expected error message is: %s,\nbut actual is: %s", expectedErrorMessage, err.Error())
-	}
+	assert.Equal(t, expectedErrorMessage, err.Error())
 }
 
 const configurationResponseBody = `
