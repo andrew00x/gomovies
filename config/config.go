@@ -7,10 +7,13 @@ import (
 )
 
 type Config struct {
-	Dirs          []string `json:"dirs"`
-	VideoFileExts []string `json:"video_file_exts"`
-	WebDir        string   `json:"web_dir"`
-	WebPort       int      `json:"web_port"`
+	Dirs            []string `json:"dirs"`
+	VideoFileExts   []string `json:"video_file_exts"`
+	WebDir          string   `json:"web_dir"`
+	WebPort         int      `json:"web_port"`
+	TMDbApiKey      string   `json:"tmdb_api_key"`
+	TMDbPosterSmall string   `json:"tmdb_poster_small"`
+	TMDbPosterLarge string   `json:"tmdb_poster_large"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -30,6 +33,15 @@ func loadConfig(path string) (*Config, error) {
 	}
 	if conf.WebPort == 0 {
 		conf.WebPort = 8000
+	}
+	if len(conf.VideoFileExts) == 0 {
+		conf.VideoFileExts = append(conf.VideoFileExts, ".avi", ".mkv")
+	}
+	if conf.TMDbPosterSmall == "" {
+		conf.TMDbPosterSmall = "w154"
+	}
+	if conf.TMDbPosterLarge == "" {
+		conf.TMDbPosterLarge = "w500"
 	}
 	return &conf, nil
 }

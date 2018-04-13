@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/file"
 )
 
@@ -111,7 +112,7 @@ func fileDrive(drives []*drive, file string) *drive {
 	return findDrive(drives, func(d *drive) bool { return strings.HasPrefix(file, d.mountPoint) })
 }
 
-func driveMounted(drives []*drive, f *MovieFile) bool {
+func driveMounted(drives []*drive, f *api.Movie) bool {
 	return findDrive(drives, func(d *drive) bool { return d.name == f.DriveName }) != nil
 }
 

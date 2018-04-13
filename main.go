@@ -3,23 +3,24 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"net/http"
 	"os/signal"
 	"syscall"
+	"strconv"
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/service"
-	"github.com/andrew00x/gomovies/catalog"
-	"github.com/andrew00x/gomovies/player"
 	"github.com/andrew00x/omxcontrol"
 )
 
 var conf *config.Config
 var catalogService *service.CatalogService
 var playerService *service.PlayerService
+var tmDbService *service.TMDbService
 
 func main() {
 	var err error
@@ -28,18 +29,20 @@ func main() {
 		log.Fatalf("Could not read configuration: %v", err)
 	}
 
-	ctl, err := catalog.CreateCatalog(conf)
+	catalogService, err = service.CreateCatalogService(conf)
 	if err != nil {
 		log.Fatalf("Could not create catalog: %v", err)
 	}
-	catalogService = service.CreateCatalogService(ctl)
 
-	var plr player.Player
-	plr, err = player.Create(conf)
+	playerService, err = service.CreatePlayerService(conf)
 	if err != nil {
 		log.Fatalf("Could not create player: %v", err)
 	}
-	playerService = service.CreatePlayerService(plr, ctl)
+
+	tmDbService, err = service.CreateTMDbService(conf)
+	if err != nil {
+		log.Fatalf("Could not the Movie DB service: %v", err)
+	}
 
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 	log.Printf("Starting on port: %d\n", conf.WebPort)
@@ -47,7 +50,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP)
 	go func() {
 		<-quit
-		if err := catalogService.Stop(); err != nil {
+		if err := catalogService.Save(); err != nil {
 			log.Printf("Unable save catalog file: %v\n", err)
 		} else {
 			log.Println("Save catalog file")
@@ -58,10 +61,13 @@ func main() {
 	}()
 
 	webClient()
+	http.HandleFunc("/api/details", details)
+	http.HandleFunc("/api/details/search", searchDetails)
 	http.HandleFunc("/api/list", allMovies)
 	http.HandleFunc("/api/play", playMovie)
 	http.HandleFunc("/api/search", searchMovies)
 	http.HandleFunc("/api/refresh", refresh)
+	http.HandleFunc("/api/update", updateMovie)
 	http.HandleFunc("/api/player/audios", audios)
 	http.HandleFunc("/api/player/mute", mute)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
@@ -108,6 +114,22 @@ func audios(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(audios, err, w)
 }
 
+func details(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+	var md api.MovieDetails
+	if err == nil {
+		m, found := catalogService.Get(int(id))
+		if found {
+			if m.TMDbId != 0 {
+				md, err = tmDbService.MovieDetails(m.TMDbId)
+			}
+		} else {
+			err = errors.New(fmt.Sprintf("invalid movie id: %d", id))
+		}
+	}
+	writeJsonResponse(md, err, w)
+}
+
 func mute(w http.ResponseWriter, _ *http.Request) {
 	err := playerService.Mute()
 	writeJsonResponse(nil, err, w)
@@ -124,12 +146,12 @@ func nextSubtitles(w http.ResponseWriter, _ *http.Request) {
 }
 
 func playMovie(w http.ResponseWriter, r *http.Request) {
-	var entity struct{ Movie int `json:"movie"` }
+	var entity struct{ MoviePath string `json:"movie"` }
 	var status api.PlayerStatus
 	var err error
 	parser := json.NewDecoder(r.Body)
 	if err = parser.Decode(&entity); err == nil {
-		status, err = playerService.PlayMovie(entity.Movie)
+		status, err = playerService.PlayMovie(entity.MoviePath)
 	}
 	writeJsonResponse(status, err, w)
 }
@@ -165,25 +187,19 @@ func replayCurrent(w http.ResponseWriter, _ *http.Request) {
 }
 
 func refresh(w http.ResponseWriter, _ *http.Request) {
-	var err error
-	conf, err = config.LoadConfig()
-	if err == nil {
-		catalogService.Refresh(conf)
-	}
+	err := catalogService.Refresh()
 	writeJsonResponse(nil, err, w)
 }
 
+func searchDetails(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	result, err := tmDbService.SearchDetails(query)
+	writeJsonResponse(result, err, w)
+}
+
 func searchMovies(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Query().Get("q")
-	writeJsonResponse(catalogService.Find(title), nil, w)
-}
-
-type index struct {
-	Index int `json:"index"`
-}
-
-type position struct {
-	Position int `json:"position"`
+	query := r.URL.Query().Get("q")
+	writeJsonResponse(catalogService.Find(query), nil, w)
 }
 
 func seek(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +214,7 @@ func seek(w http.ResponseWriter, r *http.Request) {
 }
 
 func selectAudio(w http.ResponseWriter, r *http.Request) {
-	var entity index
+	var entity trackIndex
 	parser := json.NewDecoder(r.Body)
 	var audios []omxcontrol.Stream
 	var err error
@@ -209,7 +225,7 @@ func selectAudio(w http.ResponseWriter, r *http.Request) {
 }
 
 func selectSubtitle(w http.ResponseWriter, r *http.Request) {
-	var entity index
+	var entity trackIndex
 	parser := json.NewDecoder(r.Body)
 	var subtitles []omxcontrol.Stream
 	var err error
@@ -255,8 +271,14 @@ func unmute(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(nil, err, w)
 }
 
-type vol struct {
-	Volume float64 `json:"volume"`
+func updateMovie(w http.ResponseWriter, r *http.Request) {
+	var movie api.Movie
+	parser := json.NewDecoder(r.Body)
+	err := parser.Decode(&movie)
+	if err == nil {
+		movie, err = catalogService.Update(movie)
+	}
+	writeJsonResponse(movie, err, w)
 }
 
 func volume(w http.ResponseWriter, _ *http.Request) {
@@ -287,4 +309,16 @@ func writeJsonResponse(body interface{}, err error, w http.ResponseWriter) {
 		m := api.MessagePayload{Message: err.Error()}
 		encoder.Encode(m)
 	}
+}
+
+type trackIndex struct {
+	Index int `json:"index"`
+}
+
+type position struct {
+	Position int `json:"position"`
+}
+
+type vol struct {
+	Volume float64 `json:"volume"`
 }

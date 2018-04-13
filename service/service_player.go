@@ -1,22 +1,27 @@
 package service
 
 import (
-	"errors"
-	"fmt"
 	"time"
 	"github.com/andrew00x/gomovies/api"
-	"github.com/andrew00x/gomovies/catalog"
+	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/player"
 	"github.com/andrew00x/omxcontrol"
 )
 
 type PlayerService struct {
-	p   player.Player
-	ctl catalog.Catalog
+	p player.Player
 }
 
-func CreatePlayerService(plr player.Player, ctl catalog.Catalog) *PlayerService {
-	return &PlayerService{plr, ctl}
+func CreatePlayerService(conf *config.Config) (*PlayerService, error) {
+	plr, err := player.Create(conf)
+	if err != nil {
+		return nil, err
+	}
+	return createPlayerService(plr), nil
+}
+
+func createPlayerService(plr player.Player) *PlayerService {
+	return &PlayerService{plr}
 }
 
 func (srv *PlayerService) AudioTracks() ([]omxcontrol.Stream, error) {
@@ -59,13 +64,8 @@ func (srv *PlayerService) Play() (status api.PlayerStatus, err error) {
 	return
 }
 
-func (srv *PlayerService) PlayMovie(id int) (status api.PlayerStatus, err error) {
-	m := srv.ctl.Get(id)
-	if m == nil {
-		err = errors.New(fmt.Sprintf("invalid movie id: %d", id))
-		return
-	}
-	err = srv.p.PlayMovie(m.Path)
+func (srv *PlayerService) PlayMovie(path string) (status api.PlayerStatus, err error) {
+	err = srv.p.PlayMovie(path)
 	if err == nil {
 		status, err = srv.p.Status()
 	}

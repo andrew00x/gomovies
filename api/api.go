@@ -1,11 +1,28 @@
 package api
 
 type Movie struct {
-	Id        int    `json:"id"`
-	Title     string `json:"title"`
-	Path      string `json:"path"`
-	DriveName string `json:"drive"`
 	Available bool   `json:"available"`
+	DriveName string `json:"drive"`
+	Id        int    `json:"id"`
+	Path      string `json:"path"`
+	Title     string `json:"title"`
+	TMDbId    int    `json:"tmdb_id,omitempty"`
+}
+
+type MovieDetails struct {
+	Budget         int      `json:"budget,omitempty"`
+	Companies      []string `json:"companies,omitempty"`
+	Countries      []string `json:"countries,omitempty"`
+	Genres         []string `json:"genres,omitempty"`
+	OriginalTitle  string   `json:"original_title"`
+	Overview       string   `json:"overview"`
+	PosterSmallUrl string   `json:"poster_small_url"`
+	PosterLargeUrl string   `json:"poster_large_url"`
+	ReleaseDate    string   `json:"release_date"`
+	Revenue        int      `json:"revenue,omitempty"`
+	TagLine        string   `json:"tagline,omitempty"`
+	TMDbId         int      `json:"tmdb_id"`
+	ImdbId         string   `json:"imdb_id,omitempty"`
 }
 
 type PlayerStatus struct {

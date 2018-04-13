@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"strconv"
+	"time"
 )
-
-const baseUrl = "https://api.themoviedb.org/3"
 
 type MovieSearchResult struct {
 	Page         int          `json:"page"`
@@ -34,7 +34,7 @@ type MovieDetails struct {
 	Id                  int       `json:"id"`
 	Title               string    `json:"title"`
 	OriginalTitle       string    `json:"original_title"`
-	Tagline             string    `json:"tagline"`
+	TagLine             string    `json:"tagline"`
 	PosterPath          string    `json:"poster_path"`
 	BackdropPath        string    `json:"backdrop_path"`
 	ReleaseDate         string    `json:"release_date"`
@@ -84,6 +84,10 @@ type Images struct {
 	StillSizes    []string `json:"still_sizes"`
 }
 
+const baseUrl = "https://api.themoviedb.org/3"
+const remainingReqLimitHeader = "X-RateLimit-Remaining"
+const rateLimitEndsHeader = "X-RateLimit-Reset"
+
 var clientFactory apiClientFactory
 
 func init() {
@@ -91,10 +95,10 @@ func init() {
 }
 
 type TmDb struct {
-	mu                sync.Mutex
-	apiKey            string
-	client            apiClient
-	movieDetailsCache *cache
+	mu        sync.Mutex
+	rateTimer time.Time
+	apiKey    string
+	client    apiClient
 }
 
 type apiClientFactory func() apiClient
@@ -107,43 +111,75 @@ func (*defaultApiClient) get(reqUrl string) (*http.Response, error) {
 	return http.Get(reqUrl)
 }
 
-func createTmDb(apiKey string) *TmDb {
-	return &TmDb{apiKey: apiKey, client: clientFactory(), movieDetailsCache: createCache()}
+var tmDb *TmDb
+var once sync.Once
+
+func GetTmDbInstance(apiKey string) *TmDb {
+	once.Do(func() {
+		tmDb = &TmDb{apiKey: apiKey, client: clientFactory()}
+	})
+	return tmDb
 }
 
 func (tmdb *TmDb) GetConfiguration() (Configuration, error) {
 	reqUrl := fmt.Sprintf("%s/configuration?api_key=%s", baseUrl, tmdb.apiKey)
 	config := Configuration{}
-	_, err := tmdb.sendRequest(reqUrl, &config)
+	_, err := tmdb.request(reqUrl, &config)
 	return config, err
 }
 
-func (tmdb *TmDb) SearchMovies(query string, page int) (MovieSearchResult, error) {
-	reqUrl := fmt.Sprintf("%s/search/movie?api_key=%s&query=%s&page=%d", baseUrl, tmdb.apiKey, url.QueryEscape(query), page)
+func (tmdb *TmDb) SearchMovies(query string) ([]MovieShort, error) {
+	reqUrlFormat := "%s/search/movie?api_key=%s&query=%s&page=%d"
+	reqUrl := fmt.Sprintf(reqUrlFormat, baseUrl, tmdb.apiKey, url.QueryEscape(query), 1)
 	result := MovieSearchResult{}
-	_, err := tmdb.sendRequest(reqUrl, &result)
-	return result, err
+	_, err := tmdb.request(reqUrl, &result)
+	all := make([]MovieShort, 0, result.TotalResults)
+	for _, m := range result.Results {
+		all = append(all, m)
+	}
+	totalPages := result.TotalPages
+	if totalPages > 1 {
+		for page := 2; err == nil && page <= totalPages; page++ {
+			reqUrl = fmt.Sprintf(reqUrlFormat, baseUrl, tmdb.apiKey, url.QueryEscape(query), page)
+			_, err = tmdb.request(reqUrl, &result)
+			for _, m := range result.Results {
+				all = append(all, m)
+			}
+		}
+	}
+	return all, err
 }
 
 func (tmdb *TmDb) GetMovie(id int) (MovieDetails, error) {
-	res, err := tmdb.movieDetailsCache.getOrLoad(id, func(k key) (interface{}, error) {
-		reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, id, tmdb.apiKey)
-		mov := MovieDetails{}
-		_, err := tmdb.sendRequest(reqUrl, &mov)
-		log.Printf("Retrieve movie details from TMDb, movie id: %d, error: %v\n", id, err)
-		return mov, err
-	})
-	return res.(MovieDetails), err
+	reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, id, tmdb.apiKey)
+	mov := MovieDetails{}
+	_, err := tmdb.request(reqUrl, &mov)
+	log.Printf("Retrieve movie details from TMDb, movie id: %d, error: %v\n", id, err)
+	return mov, err
 }
 
-func (tmdb *TmDb) sendRequest(reqUrl string, payload interface{}) (interface{}, error) {
+func (tmdb *TmDb) request(reqUrl string, payload interface{}) (interface{}, error) {
 	tmdb.mu.Lock()
 	defer tmdb.mu.Unlock()
+
+	now := time.Now()
+	if tmdb.rateTimer.After(now) {
+		<-time.After(tmdb.rateTimer.Sub(now))
+	}
+
 	resp, err := tmdb.client.get(reqUrl)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.Header.Get(remainingReqLimitHeader) == "0" {
+		rateLimitEnds, err := strconv.ParseInt(resp.Header.Get(rateLimitEndsHeader), 10, 64)
+		if err == nil {
+			tmdb.rateTimer = time.Unix(1+rateLimitEnds, 0)
+		}
+	}
+
 	parser := json.NewDecoder(resp.Body)
 	if resp.StatusCode/100 == 2 {
 		err = parser.Decode(payload)
@@ -152,10 +188,12 @@ func (tmdb *TmDb) sendRequest(reqUrl string, payload interface{}) (interface{}, 
 		}
 		return payload, nil
 	}
+
 	errorStatus := ErrorStatus{}
 	err = parser.Decode(&errorStatus)
 	if err != nil {
 		return nil, err
 	}
+
 	return nil, errors.New(fmt.Sprintf("error: %s, code: %d", errorStatus.Message, errorStatus.Code))
 }

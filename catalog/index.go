@@ -3,11 +3,12 @@ package catalog
 import (
 	"log"
 	"strings"
+	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
 )
 
 type Index interface {
-	Add(f MovieFile)
+	Add(m api.Movie)
 	Find(title string) []int
 }
 
@@ -21,7 +22,7 @@ var indexFactory IndexFactory
 
 func init() {
 	indexFactory = func(_ *config.Config) (Index, error) {
-		return &SimpleIndex{make(map[string]int, 128)}, nil
+		return &SimpleIndex{make(map[string]int)}, nil
 	}
 }
 
@@ -29,9 +30,9 @@ type SimpleIndex struct {
 	idx map[string]int
 }
 
-func (i *SimpleIndex) Add(f MovieFile) {
-	i.idx[strings.ToLower(f.Title)] = f.Id
-	log.Printf("Add file '%s' to index\n", f.Path)
+func (i *SimpleIndex) Add(m api.Movie) {
+	i.idx[strings.ToLower(m.Title)] = m.Id
+	log.Printf("Add file '%s' to index\n", m.Path)
 }
 
 func (i *SimpleIndex) Find(title string) []int {

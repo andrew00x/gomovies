@@ -5,10 +5,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"testing"
+	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -26,35 +27,34 @@ func TestLoadCatalog(t *testing.T) {
 	}
 	defer func() { mustRemoveFiles(files...) }()
 
-	movies := make([]MovieFile, 0, len(files))
+	movies := make([]api.Movie, 0, len(files))
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
+		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
 		id++
 	}
 
 	mustSaveCatalogFile(movies)
 
-	index := indexMock{[]MovieFile{}, []int{}}
+	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
 	catalog, err := createJsonCatalog(&config.Config{})
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
+	assert.Nil(t, err)
 
 	result := catalog.All()
 	sort.Sort(byId(result))
-	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual : %+v\n", movies, result)
+	expected := make([]api.Movie, 0, len(movies))
+	for _, m := range movies {
+		m.Available = true
+		expected = append(expected, m)
 	}
+	assert.Equal(t, expected, result)
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
-	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected to added in index: %+v\nbut actual: %+v\n", movies, indexed)
-	}
+	assert.Equal(t, movies, indexed)
 }
 
 func TestCreatedNewCatalog(t *testing.T) {
@@ -67,34 +67,33 @@ func TestCreatedNewCatalog(t *testing.T) {
 	}
 	defer func() { mustRemoveFiles(files...) }()
 
-	movies := make([]MovieFile, 0, len(files))
+	movies := make([]api.Movie, 0, len(files))
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
+		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
 		id++
 	}
 
-	index := indexMock{[]MovieFile{}, []int{}}
+	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
 	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
 	catalog, err := createJsonCatalog(conf)
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
+	assert.Nil(t, err)
 
+	expected := make([]api.Movie, 0, len(movies))
+	for _, m := range movies {
+		m.Available = true
+		expected = append(expected, m)
+	}
 	result := catalog.All()
 	sort.Sort(byId(result))
-	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
-	}
+	assert.Equal(t, expected, result)
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
-	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected to added in index: %+v\nbut actual: %+v\n", movies, indexed)
-	}
+	assert.Equal(t, movies, indexed)
 }
 
 func TestCreatedAndUpdateCatalog(t *testing.T) {
@@ -106,11 +105,11 @@ func TestCreatedAndUpdateCatalog(t *testing.T) {
 	}
 	defer func() { mustRemoveFiles(files...) }()
 
-	movies := make([]MovieFile, 0, len(files))
+	movies := make([]api.Movie, 0, len(files))
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
+		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
 		id++
 	}
 
@@ -119,28 +118,27 @@ func TestCreatedAndUpdateCatalog(t *testing.T) {
 	newFile := filepath.Join(moviesDir, "lethal weapon", "lethal weapon 4.mkv")
 	mustCreateFile(newFile)
 	files = append(files, newFile)
-	movies = append(movies, MovieFile{Id: id, Path: newFile, Title: filepath.Base(newFile), DriveName: driveId})
+	movies = append(movies, api.Movie{Id: id, Path: newFile, Title: filepath.Base(newFile), DriveName: driveId})
 
-	index := indexMock{[]MovieFile{}, []int{}}
+	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
 	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
 	catalog, err := createJsonCatalog(conf)
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
+	assert.Nil(t, err)
 
+	expected := make([]api.Movie, 0, len(movies))
+	for _, m := range movies {
+		m.Available = true
+		expected = append(expected, m)
+	}
 	result := catalog.All()
 	sort.Sort(byId(result))
-	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
-	}
+	assert.Equal(t, expected, result)
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
-	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected to added in index: %+v\nbut actual: %+v\n", movies, indexed)
-	}
+	assert.Equal(t, movies, indexed)
 }
 
 func TestSaveCatalog(t *testing.T) {
@@ -150,10 +148,10 @@ func TestSaveCatalog(t *testing.T) {
 		filepath.Join(moviesDir, "fight club.avi"),
 	}
 
-	movies := make(map[int]*MovieFile)
+	movies := make(map[int]*api.Movie)
 	id := 1
 	for _, f := range files {
-		movies[id] = &MovieFile{Id: id, Title: filepath.Base(f), Path: f, DriveName: driveId}
+		movies[id] = &api.Movie{Id: id, Title: filepath.Base(f), Path: f, DriveName: driveId}
 		id++
 	}
 	catalog := &JsonCatalog{movies: movies}
@@ -165,12 +163,10 @@ func TestSaveCatalog(t *testing.T) {
 	}
 	defer f.Close()
 	parser := json.NewDecoder(f)
-	var saved map[int]*MovieFile
+	var saved map[int]*api.Movie
 	parser.Decode(&saved)
 
-	if !reflect.DeepEqual(movies, saved) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, saved)
-	}
+	assert.Equal(t, movies, saved)
 }
 
 func TestFindByNameInCatalog(t *testing.T) {
@@ -181,21 +177,19 @@ func TestFindByNameInCatalog(t *testing.T) {
 		filepath.Join(moviesDir, "hobbit 3 (battle of five armies).mkv"),
 	}
 	var id = 1
-	movies := make(map[int]*MovieFile)
+	movies := make(map[int]*api.Movie)
 	for _, f := range files {
-		movies[id] = &MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId}
+		movies[id] = &api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId}
 		id++
 	}
 
-	index := indexMock{added: []MovieFile{}, found: []int{1, 3}}
+	index := indexMock{added: []api.Movie{}, found: []int{1, 3}}
 	catalog := &JsonCatalog{movies: movies, index: &index}
 
 	result := catalog.Find("whatever we have in index")
 
-	expected := []MovieFile{*movies[1], *movies[3]}
-	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Expected to find items: %+v\nbut actual: %+v\n", movies, result)
-	}
+	expected := []api.Movie{*movies[1], *movies[3]}
+	assert.Equal(t, expected, result)
 }
 
 func TestRemovesFromNonexistentFilesFromCatalog(t *testing.T) {
@@ -207,33 +201,31 @@ func TestRemovesFromNonexistentFilesFromCatalog(t *testing.T) {
 	mustCreateFile(files[0])
 	defer mustRemoveFiles(files[0])
 	var id = 1
-	movies := make([]MovieFile, 0, len(files))
+	movies := make([]api.Movie, 0, len(files))
 	for _, f := range files {
-		movies = append(movies, MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
+		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
 		id++
 	}
 	mustSaveCatalogFile(movies)
 
-	index := indexMock{[]MovieFile{}, []int{}}
+	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
 	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".avi"}}
 	catalog, err := createJsonCatalog(conf)
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
+	assert.Nil(t, err)
+
+	m := movies[0]
+	m.Available = true
+	expected := []api.Movie{m}
 
 	result := catalog.All()
-	expected := []MovieFile{movies[0]}
-	if !reflect.DeepEqual(expected, result) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", expected, result)
-	}
+	sort.Sort(byId(result))
+	assert.Equal(t, expected, result)
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
-	if !reflect.DeepEqual(expected, indexed) {
-		t.Fatalf("Expected items in index: %+v\nbut actual: %+v\n", movies, indexed)
-	}
+	assert.Equal(t, []api.Movie{movies[0]}, indexed)
 }
 
 func TestKeepsNonexistentFilesIfCorrespondedDriveIsUnmounted(t *testing.T) {
@@ -245,38 +237,37 @@ func TestKeepsNonexistentFilesIfCorrespondedDriveIsUnmounted(t *testing.T) {
 		filepath.Join(moviesDir, "rush hour 2.mkv"),
 	}
 	var id = 1
-	movies := make([]MovieFile, 0, len(files))
+	movies := make([]api.Movie, 0, len(files))
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
+		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
 		id++
 	}
 	defer func() { mustRemoveFiles(files...) }()
 	nonexistent := filepath.Join(moviesDir2, "rush hour 3.mkv")
 	files = append(files, nonexistent)
-	movies = append(movies, MovieFile{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"})
+	movies = append(movies, api.Movie{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"})
 	mustSaveCatalogFile(movies)
 
-	index := indexMock{[]MovieFile{}, []int{}}
+	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
 	conf := &config.Config{Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
 	catalog, err := createJsonCatalog(conf)
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
+	assert.Nil(t, err)
 
+	expected := make([]api.Movie, 0, len(movies))
+	for _, m := range movies {
+		m.Available = m.Path != nonexistent
+		expected = append(expected, m)
+	}
 	result := catalog.All()
 	sort.Sort(byId(result))
-	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
-	}
+	assert.Equal(t, expected, result)
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
-	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected items in index: %+v\nbut actual: %+v\n", movies, indexed)
-	}
+	assert.Equal(t, movies, indexed)
 }
 
 func TestRefreshCatalog(t *testing.T) {
@@ -286,56 +277,57 @@ func TestRefreshCatalog(t *testing.T) {
 		filepath.Join(moviesDir, "rocky 2.mkv"),
 		filepath.Join(moviesDir, "rocky 4.avi"),
 	}
-	movies := make([]MovieFile, 0, len(files))
+	movies := make([]api.Movie, 0, len(files))
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, MovieFile{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
+		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: driveId})
 		id++
 	}
 	mustSaveCatalogFile(movies)
 	defer func() { mustRemoveFiles(files...) }()
 
-	index := indexMock{[]MovieFile{}, []int{}}
+	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{Dirs: []string{}, VideoFileExts: []string{".mkv", ".avi"}}
+	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
 	catalog, err := createJsonCatalog(conf)
-	if err != nil {
-		t.Fatalf("Unable create catalog: %v\n", err)
-	}
+	assert.Nil(t, err)
 
+	expected := make([]api.Movie, 0, len(movies))
+	for _, m := range movies {
+		m.Available = true
+		expected = append(expected, m)
+	}
 	result := catalog.All()
 	sort.Sort(byId(result))
-	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items: %+v\nbut actual: %+v\n", movies, result)
-	}
+	assert.Equal(t, expected, result)
 
-	conf.Dirs = []string{moviesDir}
 	mustRemoveFiles(files[2])
 	newFile := filepath.Join(moviesDir, "rocky 5.mkv")
 	files[2] = newFile
 	mustCreateFile(newFile)
 	movies = movies[0:2]
-	movies = append(movies, MovieFile{Id: 3, Path: newFile, Title: filepath.Base(newFile), DriveName: driveId})
-	index = indexMock{[]MovieFile{}, []int{}}
+	movies = append(movies, api.Movie{Id: 3, Path: newFile, Title: filepath.Base(newFile), DriveName: driveId})
+	index = indexMock{[]api.Movie{}, []int{}}
 
-	catalog.Refresh(conf)
+	catalog.Refresh()
 
+	expected = make([]api.Movie, 0, len(movies))
+	for _, m := range movies {
+		m.Available = true
+		expected = append(expected, m)
+	}
 	result = catalog.All()
 	sort.Sort(byId(result))
-	if !reflect.DeepEqual(movies, result) {
-		t.Fatalf("Expected catalog items after refresh: %+v\nbut actual: %+v\n", movies, result)
-	}
+	assert.Equal(t, expected, result)
 
 	indexed := index.added
 	sort.Sort(byId(indexed))
-	if !reflect.DeepEqual(movies, indexed) {
-		t.Fatalf("Expected items in index: %+v\nbut actual: %+v\n", movies, indexed)
-	}
+	assert.Equal(t, movies, indexed)
 }
 
-type byId []MovieFile
+type byId []api.Movie
 
 func (m byId) Less(i, j int) bool { return m[i].Id < m[j].Id }
 func (m byId) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
@@ -461,12 +453,12 @@ func mustRemoveFiles(paths ...string) {
 	}
 }
 
-func mustSaveCatalogFile(movies []MovieFile) {
+func mustSaveCatalogFile(movies []api.Movie) {
 	file, err := os.OpenFile(filepath.Join(testRoot, "catalog.json"), os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
 	}
-	m := make(map[int]MovieFile, len(movies))
+	m := make(map[int]api.Movie, len(movies))
 	for _, f := range movies {
 		m[f.Id] = f
 	}
@@ -479,12 +471,12 @@ func mustSaveCatalogFile(movies []MovieFile) {
 }
 
 type indexMock struct {
-	added []MovieFile
+	added []api.Movie
 	found []int
 }
 
-func (idx *indexMock) Add(f MovieFile) {
-	idx.added = append(idx.added, f)
+func (idx *indexMock) Add(m api.Movie) {
+	idx.added = append(idx.added, m)
 }
 
 func (idx *indexMock) Find(title string) []int {

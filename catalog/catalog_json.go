@@ -2,10 +2,13 @@ package catalog
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sync"
+	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/file"
 	"github.com/andrew00x/gomovies/util"
@@ -13,8 +16,8 @@ import (
 
 type JsonCatalog struct {
 	mu     sync.RWMutex
-	movies map[int]*MovieFile
-	config *config.Config
+	movies map[int]*api.Movie
+	conf   *config.Config
 	index  Index
 }
 
@@ -30,7 +33,7 @@ func init() {
 }
 
 func createJsonCatalog(conf *config.Config) (Catalog, error) {
-	catalog := &JsonCatalog{config: conf}
+	catalog := &JsonCatalog{conf: conf}
 	err := catalog.Load()
 	if err != nil {
 		return nil, err
@@ -47,33 +50,43 @@ func (g *idGenerator) next() int {
 	return g.v
 }
 
-func (ctl *JsonCatalog) All() []MovieFile {
+func (ctl *JsonCatalog) All() []api.Movie {
 	ctl.mu.RLock()
 	defer ctl.mu.RUnlock()
 	all := ctl.movies
-	result := make([]MovieFile, 0, len(all))
-	for _, m := range all {
-		result = append(result, *m)
+	result := make([]api.Movie, 0, len(all))
+	for _, p := range all {
+		m := *p
+		exists, err := file.Exists(m.Path)
+		m.Available = exists && err == nil
+		result = append(result, m)
 	}
 	return result
 }
 
-func (ctl *JsonCatalog) Find(title string) []MovieFile {
+func (ctl *JsonCatalog) Find(title string) []api.Movie {
 	ctl.mu.RLock()
 	defer ctl.mu.RUnlock()
 	ids := ctl.index.Find(title)
-	result := make([]MovieFile, 0, len(ids))
+	result := make([]api.Movie, 0, len(ids))
 	for _, id := range ids {
-		m := ctl.movies[id]
-		result = append(result, *m)
+		p := ctl.movies[id]
+		m := *p
+		exists, err := file.Exists(m.Path)
+		m.Available = exists && err == nil
+		result = append(result, m)
 	}
 	return result
 }
 
-func (ctl *JsonCatalog) Get(id int) *MovieFile {
+func (ctl *JsonCatalog) Get(id int) (api.Movie, bool) {
 	ctl.mu.RLock()
 	defer ctl.mu.RUnlock()
-	return ctl.movies[id]
+	m := ctl.movies[id]
+	if m != nil {
+		return *m, true
+	}
+	return api.Movie{}, false
 }
 
 func (ctl *JsonCatalog) Load() error {
@@ -83,11 +96,11 @@ func (ctl *JsonCatalog) Load() error {
 	if err != nil {
 		return err
 	}
-	err = updateCatalog(movies, ctl.config.Dirs, ctl.config.VideoFileExts)
+	err = updateCatalog(movies, ctl.conf.Dirs, ctl.conf.VideoFileExts)
 	if err != nil {
 		return err
 	}
-	index, err := CreateIndex(ctl.config)
+	index, err := CreateIndex(ctl.conf)
 	if err != nil {
 		return err
 	}
@@ -99,8 +112,7 @@ func (ctl *JsonCatalog) Load() error {
 	return nil
 }
 
-func (ctl *JsonCatalog) Refresh(conf *config.Config) error {
-	ctl.config = conf
+func (ctl *JsonCatalog) Refresh() error {
 	return ctl.Load()
 }
 
@@ -122,17 +134,34 @@ func (ctl *JsonCatalog) Save() (err error) {
 	return
 }
 
-func readCatalog(catalogFile string) (map[int]*MovieFile, error) {
+func (ctl *JsonCatalog) Update(u api.Movie) (api.Movie, error) {
+	ctl.mu.Lock()
+	defer ctl.mu.Unlock()
+	p := ctl.movies[u.Id]
+	if p == nil {
+		return api.Movie{}, errors.New(fmt.Sprintf("unknown movie, id: %d, title: %s", u.Id, u.Title))
+	}
+	// nothing else at the moment for update
+	p.TMDbId = u.TMDbId
+
+	m := *p
+	exists, err := file.Exists(p.Path)
+	m.Available = exists && err == nil
+
+	return m, nil
+}
+
+func readCatalog(catalogFile string) (map[int]*api.Movie, error) {
 	var err error
 	var catalogExists bool
 	if catalogExists, err = file.Exists(catalogFile); catalogExists && err == nil {
-		catalog, err := os.OpenFile(catalogFile, os.O_RDONLY, 0644)
+		f, err := os.OpenFile(catalogFile, os.O_RDONLY, 0644)
 		if err != nil {
 			return nil, err
 		}
-		defer catalog.Close()
-		parser := json.NewDecoder(catalog)
-		var movieFiles map[int]*MovieFile
+		defer f.Close()
+		parser := json.NewDecoder(f)
+		var movieFiles map[int]*api.Movie
 		if err := parser.Decode(&movieFiles); err != nil {
 			return nil, err
 		}
@@ -141,10 +170,10 @@ func readCatalog(catalogFile string) (map[int]*MovieFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return make(map[int]*MovieFile), nil
+	return make(map[int]*api.Movie), nil
 }
 
-func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) error {
+func updateCatalog(files map[int]*api.Movie, dirs []string, fileExt []string) error {
 	drives, err := mountedDrives()
 	if err != nil {
 		return err
@@ -174,7 +203,7 @@ func updateCatalog(files map[int]*MovieFile, dirs []string, fileExt []string) er
 					if drive != nil {
 						driveName = drive.name
 					}
-					files[id] = &MovieFile{Id: id, Path: path, Title: title, DriveName: driveName}
+					files[id] = &api.Movie{Id: id, Path: path, Title: title, DriveName: driveName}
 					log.Printf("Add file '%s' to catalog\n", path)
 				}
 				return nil

@@ -40,7 +40,7 @@ func TestGetConfiguration(t *testing.T) {
 		}
 		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
 	}
-	tmdb := createTmDb(fakeApiKey)
+	tmdb := GetTmDbInstance(fakeApiKey)
 	result, err := tmdb.GetConfiguration()
 	if err != nil {
 		t.Fatal(err)
@@ -67,26 +67,21 @@ func TestSearchMovie(t *testing.T) {
 		}
 		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
 	}
-	tmdb := createTmDb(fakeApiKey)
-	result, err := tmdb.SearchMovies("brave heart", 1)
+	tmdb := GetTmDbInstance(fakeApiKey)
+	result, err := tmdb.SearchMovies("brave heart")
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedResult := MovieSearchResult{
-		Page:         1,
-		TotalResults: 1,
-		TotalPages:   1,
-		Results: []MovieShort{{
-			Id:               1,
-			Title:            "Braveheart",
-			OriginalTitle:    "Braveheart",
-			OriginalLanguage: "en",
-			Overview:         "the best",
-			ReleaseDate:      "1995-05-01",
-			PosterPath:       "/braveheart_poster.jpg",
-			BackdropPath:     "/braveheart_backdrop.jpg",
-		}},
-	}
+	expectedResult := []MovieShort{{
+		Id:               1,
+		Title:            "Braveheart",
+		OriginalTitle:    "Braveheart",
+		OriginalLanguage: "en",
+		Overview:         "the best",
+		ReleaseDate:      "1995-05-01",
+		PosterPath:       "/braveheart_poster.jpg",
+		BackdropPath:     "/braveheart_backdrop.jpg",
+	}}
 	assert.Equal(t, expectedResult, result)
 }
 
@@ -99,7 +94,7 @@ func TestGetMovie(t *testing.T) {
 		}
 		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
 	}
-	tmdb := createTmDb(fakeApiKey)
+	tmdb := GetTmDbInstance(fakeApiKey)
 	result, err := tmdb.GetMovie(123)
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +111,7 @@ func TestGetMovie(t *testing.T) {
 		ImdbId:           "imdb2",
 		Budget:           10000000,
 		Revenue:          100000000,
-		Tagline:          "Every man dies. Not every man truly lives.",
+		TagLine:          "Every man dies. Not every man truly lives.",
 		Genres: []Genre{
 			{Id: 1, Name: "Action"},
 			{Id: 2, Name: "Drama"},
@@ -137,7 +132,7 @@ func TestHandleApiErrorStatus(t *testing.T) {
 	doGetFunc = func(reqUrl string) (*http.Response, error) {
 		return &http.Response{StatusCode: 400, Body: ioutil.NopCloser(strings.NewReader(apiErrorResponse))}, nil
 	}
-	tmdb := createTmDb(fakeApiKey)
+	tmdb := GetTmDbInstance(fakeApiKey)
 	_, err := tmdb.GetMovie(0)
 	if err == nil {
 		t.Fatal("error expected")

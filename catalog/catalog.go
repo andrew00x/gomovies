@@ -1,14 +1,9 @@
 package catalog
 
-import "github.com/andrew00x/gomovies/config"
-
-type MovieFile struct {
-	Id        int    `json:"id"`
-	Title     string `json:"title"`
-	Path      string `json:"path"`
-	DriveName string `json:"drive"`
-	TMDbId    string `json:"tmdb_id"`
-}
+import (
+	"github.com/andrew00x/gomovies/api"
+	"github.com/andrew00x/gomovies/config"
+)
 
 type CatalogFactory func(*config.Config) (Catalog, error)
 
@@ -19,10 +14,11 @@ func CreateCatalog(conf *config.Config) (Catalog, error) {
 }
 
 type Catalog interface {
-	All() []MovieFile
-	Find(title string) []MovieFile
-	Get(id int) *MovieFile
+	All() []api.Movie
+	Find(title string) []api.Movie
+	Get(id int) (api.Movie, bool)
 	Load() error
-	Refresh(conf *config.Config) error
+	Refresh() error
 	Save() error
+	Update(u api.Movie) (api.Movie, error)
 }

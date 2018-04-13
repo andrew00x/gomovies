@@ -1,13 +1,13 @@
-package tmdb
+package util
 
 import "sync"
 
-type cache struct {
+type Cache struct {
 	mu    sync.Mutex
-	items map[key]item
+	items map[Key]*item
 }
 
-type key interface{}
+type Key interface{}
 
 type item struct {
 	value  interface{}
@@ -15,11 +15,11 @@ type item struct {
 	loaded chan bool
 }
 
-func createCache() *cache {
-	return &cache{items: make(map[key]item)}
+func CreateCache() *Cache {
+	return &Cache{items: make(map[Key]*item)}
 }
 
-func (c *cache) get(k key) (interface{}, error) {
+func (c *Cache) Get(k Key) (interface{}, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if result, found := c.items[k]; found {
@@ -28,14 +28,14 @@ func (c *cache) get(k key) (interface{}, error) {
 	return nil, nil
 }
 
-func (c *cache) getOrLoad(k key, loader func(k key) (interface{}, error)) (interface{}, error) {
+func (c *Cache) GetOrLoad(k Key, loader func(k Key) (interface{}, error)) (interface{}, error) {
 	c.mu.Lock()
 	result, found := c.items[k]
 	if found {
 		c.mu.Unlock()
 		<-result.loaded
 	} else {
-		result = item{loaded: make(chan bool)}
+		result = &item{loaded: make(chan bool)}
 		c.items[k] = result
 		c.mu.Unlock()
 
@@ -45,7 +45,7 @@ func (c *cache) getOrLoad(k key, loader func(k key) (interface{}, error)) (inter
 	return result.value, result.err
 }
 
-func (c *cache) delete(k key) bool {
+func (c *Cache) Delete(k Key) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if _, found := c.items[k]; found {
@@ -55,8 +55,8 @@ func (c *cache) delete(k key) bool {
 	return false
 }
 
-func (c *cache) clean() {
+func (c *Cache) Clean() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.items = make(map[key]item)
+	c.items = make(map[Key]*item)
 }
