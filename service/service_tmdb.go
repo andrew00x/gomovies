@@ -82,7 +82,7 @@ func (srv *TMDbService) start() (err error) {
 		}()
 
 		quit := make(chan os.Signal)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		go func() {
 			<- quit
 			ticker.Stop()
