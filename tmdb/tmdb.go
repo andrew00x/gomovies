@@ -38,10 +38,10 @@ type MovieDetails struct {
 	PosterPath          string    `json:"poster_path"`
 	BackdropPath        string    `json:"backdrop_path"`
 	ReleaseDate         string    `json:"release_date"`
-	Revenue             int       `json:"revenue"`
+	Revenue             int64     `json:"revenue"`
 	ProductionCountries []Country `json:"production_countries"`
 	ProductionCompanies []Company `json:"production_companies"`
-	Budget              int       `json:"budget"`
+	Budget              int64     `json:"budget"`
 	OriginalLanguage    string    `json:"original_language"`
 	Overview            string    `json:"overview"`
 	Genres              []Genre   `json:"genres"`

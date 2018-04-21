@@ -10,7 +10,7 @@ type Movie struct {
 }
 
 type MovieDetails struct {
-	Budget         int      `json:"budget,omitempty"`
+	Budget         int64    `json:"budget,omitempty"`
 	Companies      []string `json:"companies,omitempty"`
 	Countries      []string `json:"countries,omitempty"`
 	Genres         []string `json:"genres,omitempty"`
@@ -19,7 +19,7 @@ type MovieDetails struct {
 	PosterSmallUrl string   `json:"poster_small_url"`
 	PosterLargeUrl string   `json:"poster_large_url"`
 	ReleaseDate    string   `json:"release_date"`
-	Revenue        int      `json:"revenue,omitempty"`
+	Revenue        int64    `json:"revenue,omitempty"`
 	TagLine        string   `json:"tagline,omitempty"`
 	TMDbId         int      `json:"tmdb_id"`
 	ImdbId         string   `json:"imdb_id,omitempty"`
