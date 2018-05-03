@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 	"strconv"
+	"time"
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
 	"github.com/andrew00x/gomovies/service"
@@ -44,10 +45,20 @@ func main() {
 		log.Fatalf("Could not the Movie DB service: %v", err)
 	}
 
+	log.Println("Start loading details from 'The Movie DB'")
+	startTMDbLoad := time.Now()
+	for _, m := range catalogService.All() {
+		if m.TMDbId > 0 {
+			tmDbService.MovieDetails(m.TMDbId)
+		}
+	}
+	stopTMDbLoad := time.Now()
+	log.Printf("Stop loading details from 'The Movie DB', spent %ds\n", stopTMDbLoad.Sub(startTMDbLoad) / time.Second)
+
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 	log.Printf("Starting on port: %d\n", conf.WebPort)
-	quit := make(chan os.Signal)
 
+	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-quit
@@ -61,7 +72,6 @@ func main() {
 		}
 	}()
 
-	webClient()
 	http.HandleFunc("/api/details", details)
 	http.HandleFunc("/api/details/search", searchDetails)
 	http.HandleFunc("/api/list", allMovies)
@@ -91,6 +101,7 @@ func main() {
 	http.HandleFunc("/api/player/volume", volume)
 	http.HandleFunc("/api/player/volumedown", volumeDown)
 	http.HandleFunc("/api/player/volumeup", volumeUp)
+	webClient()
 
 	if err = web.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatalf("Could not start http listener: %v\n", err)
@@ -107,7 +118,18 @@ func webClient() {
 }
 
 func allMovies(w http.ResponseWriter, _ *http.Request) {
-	writeJsonResponse(catalogService.All(), nil, w)
+	result := catalogService.All()
+	l := len(result)
+	for i := 0; i < l; i++ {
+		m := &result[i]
+		if m.TMDbId > 0 {
+			md, err := tmDbService.MovieDetails(m.TMDbId)
+			if err == nil {
+				m.Details = &md
+			}
+		}
+	}
+	writeJsonResponse(result, nil, w)
 }
 
 func audios(w http.ResponseWriter, _ *http.Request) {
@@ -200,7 +222,16 @@ func searchDetails(w http.ResponseWriter, r *http.Request) {
 
 func searchMovies(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	writeJsonResponse(catalogService.Find(query), nil, w)
+	result := catalogService.Find(query)
+	for _, m := range result {
+		if m.TMDbId > 0 {
+			md, err := tmDbService.MovieDetails(m.TMDbId)
+			if err == nil {
+				m.Details = &md
+			}
+		}
+	}
+	writeJsonResponse(result, nil, w)
 }
 
 func seek(w http.ResponseWriter, r *http.Request) {

@@ -1,12 +1,13 @@
 package api
 
 type Movie struct {
-	Available bool   `json:"available"`
-	DriveName string `json:"drive"`
-	Id        int    `json:"id"`
-	Path      string `json:"path"`
-	Title     string `json:"title"`
-	TMDbId    int    `json:"tmdb_id,omitempty"`
+	Available bool          `json:"available"`
+	DriveName string        `json:"drive"`
+	Id        int           `json:"id"`
+	Path      string        `json:"path"`
+	Title     string        `json:"title"`
+	TMDbId    int           `json:"tmdb_id,omitempty"`
+	Details   *MovieDetails `json:"details,omitempty"`
 }
 
 type MovieDetails struct {
