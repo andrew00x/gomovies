@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"time"
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
@@ -17,11 +18,21 @@ func CreatePlayerService(conf *config.Config) (*PlayerService, error) {
 	if err != nil {
 		return nil, err
 	}
+	plr.AddListener(&playListener{})
 	return createPlayerService(plr), nil
 }
 
 func createPlayerService(plr player.Player) *PlayerService {
 	return &PlayerService{plr}
+}
+
+type playListener struct{}
+
+func (l *playListener) StartPlay(path string) {
+	log.Printf("Started playing: %s\n", path)
+}
+func (l *playListener) StopPlay(path string) {
+	log.Printf("Stoped playing: %s\n", path)
 }
 
 func (srv *PlayerService) AudioTracks() ([]omxcontrol.Stream, error) {

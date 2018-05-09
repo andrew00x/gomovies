@@ -39,4 +39,22 @@ type Player interface {
 	Volume() (float64, error)
 	VolumeDown() error
 	VolumeUp() error
+	Observable
+}
+
+type Observable interface {
+	AddListener(l PlayListener)
+}
+
+type StartPlayListener interface {
+	StartPlay(path string)
+}
+
+type StopPlayListener interface {
+	StopPlay(path string)
+}
+
+type PlayListener interface {
+	StartPlayListener
+	StopPlayListener
 }

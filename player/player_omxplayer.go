@@ -14,8 +14,9 @@ import (
 )
 
 type OMXPlayer struct {
-	process *os.Process
-	control *omxcontrol.OmxCtrl
+	process   *os.Process
+	control   *omxcontrol.OmxCtrl
+	listeners []PlayListener
 }
 
 func init() {
@@ -25,6 +26,10 @@ func init() {
 }
 
 var controlNotSetup = errors.New("omxplayer does not play anything at the moment or control is not setup")
+
+func (p *OMXPlayer) AddListener(l PlayListener) {
+	p.listeners = append(p.listeners, l)
+}
 
 func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
 	if p.control == nil {
@@ -77,6 +82,17 @@ func (p *OMXPlayer) PlayMovie(path string) (err error) {
 		} else {
 			p.quit()
 		}
+	}
+	if err == nil {
+		for _, l := range p.listeners {
+			l.StartPlay(path)
+		}
+		go func() {
+			p.process.Wait()
+			for _, l := range p.listeners {
+				l.StopPlay(path)
+			}
+		}()
 	}
 	return
 }
