@@ -92,7 +92,7 @@ func (srv *PlayerService) AudioTracks() ([]omxcontrol.Stream, error) {
 
 func (srv *PlayerService) Enqueue(path string) (queue []string, err error) {
 	s, _ := srv.player.Status()
-	if s.Playing != "" {
+	if s.Playing == "" {
 		err = srv.player.PlayMovie(path)
 	} else {
 		srv.queue.Enqueue(path)
