@@ -229,13 +229,14 @@ func (p *OMXPlayer) action(actionCode omxcontrol.KeyboardAction) error {
 }
 
 func (p *OMXPlayer) quit() (err error) {
-	if p.process != nil {
-		log.Printf("kill omxplayer, pid: (%d)\n", p.process.Pid)
-		pgid, err := syscall.Getpgid(p.process.Pid)
+	process := p.process
+	if process != nil {
+		log.Printf("kill omxplayer, pid: (%d)\n", process.Pid)
+		pgid, err := syscall.Getpgid(process.Pid)
 		if err == nil {
 			syscall.Kill(-pgid, syscall.SIGTERM)
 		}
-		p.process.Wait()
+		process.Wait()
 		p.process = nil
 		p.control = nil
 	}
