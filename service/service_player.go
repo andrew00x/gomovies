@@ -1,7 +1,7 @@
 package service
 
 import (
-	"log"
+	"sync"
 	"time"
 	"github.com/andrew00x/gomovies/api"
 	"github.com/andrew00x/gomovies/config"
@@ -10,183 +10,250 @@ import (
 )
 
 type PlayerService struct {
-	p player.Player
+	player player.Player
+	queue  *PlayQueue
 }
 
 func CreatePlayerService(conf *config.Config) (*PlayerService, error) {
-	plr, err := player.Create(conf)
+	p, err := player.Create(conf)
 	if err != nil {
 		return nil, err
 	}
-	plr.AddListener(&playListener{})
-	return createPlayerService(plr), nil
+	q := PlayQueue{}
+	l := playListener{queue: &q, player: p}
+	p.AddListener(&l)
+	return createPlayerService(p, &q), nil
 }
 
-func createPlayerService(plr player.Player) *PlayerService {
-	return &PlayerService{plr}
+func createPlayerService(p player.Player, q *PlayQueue) *PlayerService {
+	return &PlayerService{player: p, queue: q}
 }
 
-type playListener struct{}
+type playListener struct {
+	queue  *PlayQueue
+	player player.Player
+}
 
 func (l *playListener) StartPlay(path string) {
-	log.Printf("Started playing: %s\n", path)
 }
+
 func (l *playListener) StopPlay(path string) {
-	log.Printf("Stoped playing: %s\n", path)
+	next := l.queue.Pop()
+	if next != "" {
+		l.player.PlayMovie(next)
+	}
+}
+
+type PlayQueue struct {
+	lock sync.Mutex
+	arr  []string
+}
+
+func (q *PlayQueue) Enqueue(path string) {
+	q.lock.Lock()
+	q.arr = append(q.arr, path)
+	q.lock.Unlock()
+}
+
+func (q *PlayQueue) Dequeue(i int) {
+	q.lock.Lock()
+	if i < len(q.arr) {
+		q.arr = append(q.arr[:i], q.arr[i+1:]...)
+	}
+	q.lock.Unlock()
+}
+
+func (q *PlayQueue) Pop() (path string) {
+	q.lock.Lock()
+	if len(q.arr) > 0 {
+		path, q.arr = q.arr[0], q.arr[1:]
+	}
+	q.lock.Unlock()
+	return
+}
+
+func (q *PlayQueue) Empty() (r bool) {
+	q.lock.Lock()
+	r = len(q.arr) == 0
+	q.lock.Unlock()
+	return
+}
+
+func (q *PlayQueue) All() (all []string) {
+	q.lock.Lock()
+	all = append([]string{}, q.arr...)
+	q.lock.Unlock()
+	return
 }
 
 func (srv *PlayerService) AudioTracks() ([]omxcontrol.Stream, error) {
-	return srv.p.AudioTracks()
+	return srv.player.AudioTracks()
+}
+
+func (srv *PlayerService) Enqueue(path string) (queue []string, err error) {
+	if srv.queue.Empty() {
+		err = srv.player.PlayMovie(path)
+	} else {
+		srv.queue.Enqueue(path)
+		queue = srv.queue.All()
+	}
+	return
+}
+
+func (srv *PlayerService) Dequeue(i int) (queue []string) {
+	srv.queue.Dequeue(i)
+	queue = srv.queue.All()
+	return
 }
 
 func (srv *PlayerService) Mute() error {
-	return srv.p.Mute()
+	return srv.player.Mute()
 }
 
 func (srv *PlayerService) NextAudioTrack() (audios []omxcontrol.Stream, err error) {
-	err = srv.p.NextAudioTrack()
+	err = srv.player.NextAudioTrack()
 	if err == nil {
-		audios, err = srv.p.AudioTracks()
+		audios, err = srv.player.AudioTracks()
 	}
 	return
 }
 
 func (srv *PlayerService) NextSubtitles() (subtitles []omxcontrol.Stream, err error) {
-	err = srv.p.NextSubtitles()
+	err = srv.player.NextSubtitles()
 	if err == nil {
-		subtitles, err = srv.p.Subtitles()
+		subtitles, err = srv.player.Subtitles()
 	}
 	return
 }
 
 func (srv *PlayerService) Pause() (status api.PlayerStatus, err error) {
-	err = srv.p.Pause()
+	err = srv.player.Pause()
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) Play() (status api.PlayerStatus, err error) {
-	err = srv.p.Play()
+	err = srv.player.Play()
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) PlayMovie(path string) (status api.PlayerStatus, err error) {
-	err = srv.p.PlayMovie(path)
+	err = srv.player.PlayMovie(path)
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) PlayPause() (status api.PlayerStatus, err error) {
-	err = srv.p.PlayPause()
+	err = srv.player.PlayPause()
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) PreviousAudioTrack() (audios []omxcontrol.Stream, err error) {
-	err = srv.p.PreviousAudioTrack()
+	err = srv.player.PreviousAudioTrack()
 	if err == nil {
-		audios, err = srv.p.AudioTracks()
+		audios, err = srv.player.AudioTracks()
 	}
 	return
 }
 
 func (srv *PlayerService) PreviousSubtitles() (subtitles []omxcontrol.Stream, err error) {
-	err = srv.p.PreviousSubtitles()
+	err = srv.player.PreviousSubtitles()
 	if err == nil {
-		subtitles, err = srv.p.Subtitles()
+		subtitles, err = srv.player.Subtitles()
 	}
 	return
 }
 
 func (srv *PlayerService) ReplayCurrent() (status api.PlayerStatus, err error) {
-	err = srv.p.ReplayCurrent()
+	err = srv.player.ReplayCurrent()
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) Seek(offset int) (status api.PlayerStatus, err error) {
-	err = srv.p.Seek(time.Duration(offset) * time.Second)
+	err = srv.player.Seek(time.Duration(offset) * time.Second)
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) SelectAudio(index int) (audios []omxcontrol.Stream, err error) {
-	err = srv.p.SelectAudio(index)
+	err = srv.player.SelectAudio(index)
 	if err == nil {
-		audios, err = srv.p.AudioTracks()
+		audios, err = srv.player.AudioTracks()
 	}
 	return
 }
 
 func (srv *PlayerService) SelectSubtitle(index int) (subtitles []omxcontrol.Stream, err error) {
-	err = srv.p.SelectSubtitle(index)
+	err = srv.player.SelectSubtitle(index)
 	if err == nil {
-		subtitles, err = srv.p.Subtitles()
+		subtitles, err = srv.player.Subtitles()
 	}
 	return
 }
 
 func (srv *PlayerService) SetPosition(position int) (status api.PlayerStatus, err error) {
-	err = srv.p.SetPosition(time.Duration(position) * time.Second)
+	err = srv.player.SetPosition(time.Duration(position) * time.Second)
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) Status() (api.PlayerStatus, error) {
-	return srv.p.Status()
+	return srv.player.Status()
 }
 
 func (srv *PlayerService) Stop() (status api.PlayerStatus, err error) {
-	err = srv.p.Stop()
+	err = srv.player.Stop()
 	if err == nil {
-		status, err = srv.p.Status()
+		status, err = srv.player.Status()
 	}
 	return
 }
 
 func (srv *PlayerService) Subtitles() ([]omxcontrol.Stream, error) {
-	return srv.p.Subtitles()
+	return srv.player.Subtitles()
 }
 
 func (srv *PlayerService) ToggleSubtitles() error {
-	return srv.p.ToggleSubtitles()
+	return srv.player.ToggleSubtitles()
 }
 
 func (srv *PlayerService) Unmute() error {
-	return srv.p.Unmute()
+	return srv.player.Unmute()
 }
 
 func (srv *PlayerService) Volume() (float64, error) {
-	return srv.p.Volume()
+	return srv.player.Volume()
 }
 
 func (srv *PlayerService) VolumeDown() (vol float64, err error) {
-	err = srv.p.VolumeDown()
+	err = srv.player.VolumeDown()
 	if err == nil {
-		vol, err = srv.p.Volume()
+		vol, err = srv.player.Volume()
 	}
 	return
 }
 
 func (srv *PlayerService) VolumeUp() (vol float64, err error) {
-	err = srv.p.VolumeUp()
+	err = srv.player.VolumeUp()
 	if err == nil {
-		vol, err = srv.p.Volume()
+		vol, err = srv.player.Volume()
 	}
 	return
 }

@@ -53,7 +53,7 @@ func main() {
 		}
 	}
 	stopTMDbLoad := time.Now()
-	log.Printf("Stop loading details from 'The Movie DB', spent %ds\n", stopTMDbLoad.Sub(startTMDbLoad) / time.Second)
+	log.Printf("Stop loading details from 'The Movie DB', spent %ds\n", stopTMDbLoad.Sub(startTMDbLoad)/time.Second)
 
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 	log.Printf("Starting on port: %d\n", conf.WebPort)
@@ -80,6 +80,8 @@ func main() {
 	http.HandleFunc("/api/refresh", refresh)
 	http.HandleFunc("/api/update", updateMovie)
 	http.HandleFunc("/api/player/audios", audios)
+	http.HandleFunc("/api/player/enqueue", enqueue)
+	http.HandleFunc("/api/player/dequeue", dequeue)
 	http.HandleFunc("/api/player/mute", mute)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
 	http.HandleFunc("/api/player/nextsubtitles", nextSubtitles)
@@ -153,6 +155,28 @@ func details(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(md, err, w)
 }
 
+func enqueue(w http.ResponseWriter, r *http.Request) {
+	var entity movie
+	var queue []string
+	var err error
+	parser := json.NewDecoder(r.Body)
+	if err = parser.Decode(&entity); err == nil {
+		queue, err = playerService.Enqueue(entity.MoviePath)
+	}
+	writeJsonResponse(queue, err, w)
+}
+
+func dequeue(w http.ResponseWriter, r *http.Request) {
+	var entity position
+	var queue []string
+	var err error
+	parser := json.NewDecoder(r.Body)
+	if err = parser.Decode(&entity); err == nil {
+		queue = playerService.Dequeue(entity.Position)
+	}
+	writeJsonResponse(queue, err, w)
+}
+
 func mute(w http.ResponseWriter, _ *http.Request) {
 	err := playerService.Mute()
 	writeJsonResponse(nil, err, w)
@@ -169,7 +193,7 @@ func nextSubtitles(w http.ResponseWriter, _ *http.Request) {
 }
 
 func playMovie(w http.ResponseWriter, r *http.Request) {
-	var entity struct{ MoviePath string `json:"movie"` }
+	var entity movie
 	var status api.PlayerStatus
 	var err error
 	parser := json.NewDecoder(r.Body)
@@ -341,6 +365,10 @@ func writeJsonResponse(body interface{}, err error, w http.ResponseWriter) {
 		m := api.MessagePayload{Message: err.Error()}
 		encoder.Encode(m)
 	}
+}
+
+type movie struct {
+	MoviePath string `json:"movie"`
 }
 
 type trackIndex struct {
