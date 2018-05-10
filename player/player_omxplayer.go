@@ -32,19 +32,21 @@ func (p *OMXPlayer) AddListener(l PlayListener) {
 }
 
 func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
-		audios, err = p.control.AudioTracks()
+		audios, err = control.AudioTracks()
 	}
 	return
 }
 
 func (p *OMXPlayer) Mute() (err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
-		err = p.control.Mute()
+		err = control.Mute()
 	}
 	return
 }
@@ -58,17 +60,19 @@ func (p *OMXPlayer) NextSubtitles() error {
 }
 
 func (p *OMXPlayer) Pause() error {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		return controlNotSetup
 	}
-	return p.control.Pause()
+	return control.Pause()
 }
 
 func (p *OMXPlayer) Play() error {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		return controlNotSetup
 	}
-	return p.control.Play()
+	return control.Play()
 }
 
 func (p *OMXPlayer) PlayMovie(path string) (err error) {
@@ -98,10 +102,11 @@ func (p *OMXPlayer) PlayMovie(path string) (err error) {
 }
 
 func (p *OMXPlayer) PlayPause() error {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		return controlNotSetup
 	}
-	return p.control.PlayPause()
+	return control.PlayPause()
 }
 
 func (p *OMXPlayer) PreviousAudioTrack() error {
@@ -113,27 +118,30 @@ func (p *OMXPlayer) PreviousSubtitles() error {
 }
 
 func (p *OMXPlayer) ReplayCurrent() (err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
-		err = p.control.SetPosition(0)
+		err = control.SetPosition(0)
 	}
 	return
 }
 
 func (p *OMXPlayer) Seek(offset time.Duration) error {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		return controlNotSetup
 	}
-	return p.control.Seek(offset)
+	return control.Seek(offset)
 }
 
 func (p *OMXPlayer) SelectAudio(index int) (err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
 		var ok bool
-		if ok, err = p.control.SelectAudio(index); !ok {
+		if ok, err = control.SelectAudio(index); !ok {
 			err = errors.New(fmt.Sprintf("audio track %d was not selected", index))
 		}
 	}
@@ -141,11 +149,12 @@ func (p *OMXPlayer) SelectAudio(index int) (err error) {
 }
 
 func (p *OMXPlayer) SelectSubtitle(index int) (err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
 		var ok bool
-		if ok, err = p.control.SelectSubtitle(index); !ok {
+		if ok, err = control.SelectSubtitle(index); !ok {
 			err = errors.New(fmt.Sprintf("subtitle %d was not selected", index))
 		}
 	}
@@ -153,21 +162,23 @@ func (p *OMXPlayer) SelectSubtitle(index int) (err error) {
 }
 
 func (p *OMXPlayer) SetPosition(position time.Duration) error {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		return controlNotSetup
 	}
-	return p.control.SetPosition(position)
+	return control.SetPosition(position)
 }
 
 func (p *OMXPlayer) Status() (status api.PlayerStatus, err error) {
-	if p.control != nil {
+	control := p.control
+	if control != nil {
 		var playing string
 		var position, duration time.Duration
 		var pbs omxcontrol.Status
-		playing, err = p.control.Playing()
-		position, err = p.control.Position()
-		duration, err = p.control.Duration()
-		pbs, err = p.control.PlaybackStatus()
+		playing, err = control.Playing()
+		position, err = control.Position()
+		duration, err = control.Duration()
+		pbs, err = control.PlaybackStatus()
 		if err == nil {
 			status.Playing = playing
 			status.Position = int(position / time.Second)
@@ -183,19 +194,21 @@ func (p *OMXPlayer) Stop() error {
 }
 
 func (p *OMXPlayer) Subtitles() (subtitles []omxcontrol.Stream, err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
-		subtitles, err = p.control.Subtitles()
+		subtitles, err = control.Subtitles()
 	}
 	return
 }
 
 func (p *OMXPlayer) Unmute() (err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
-		err = p.control.Unmute()
+		err = control.Unmute()
 	}
 	return
 }
@@ -205,10 +218,11 @@ func (p *OMXPlayer) ToggleSubtitles() error {
 }
 
 func (p *OMXPlayer) Volume() (vol float64, err error) {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		err = controlNotSetup
 	} else {
-		vol, err = p.control.Volume()
+		vol, err = control.Volume()
 	}
 	return
 }
@@ -222,10 +236,11 @@ func (p *OMXPlayer) VolumeUp() error {
 }
 
 func (p *OMXPlayer) action(actionCode omxcontrol.KeyboardAction) error {
-	if p.control == nil {
+	control := p.control
+	if control == nil {
 		return controlNotSetup
 	}
-	return p.control.Action(actionCode)
+	return control.Action(actionCode)
 }
 
 func (p *OMXPlayer) quit() (err error) {
