@@ -78,6 +78,7 @@ func main() {
 	http.HandleFunc("/api/play", playMovie)
 	http.HandleFunc("/api/enqueue", enqueue)
 	http.HandleFunc("/api/dequeue", dequeue)
+	http.HandleFunc("/api/queue", queue)
 	http.HandleFunc("/api/search", searchMovies)
 	http.HandleFunc("/api/refresh", refresh)
 	http.HandleFunc("/api/update", updateMovie)
@@ -175,6 +176,10 @@ func dequeue(w http.ResponseWriter, r *http.Request) {
 		queue = playerService.Dequeue(entity.Position)
 	}
 	writeJsonResponse(queue, err, w)
+}
+
+func queue(w http.ResponseWriter, _ *http.Request) {
+	writeJsonResponse(playerService.Queue(), nil, w)
 }
 
 func mute(w http.ResponseWriter, _ *http.Request) {

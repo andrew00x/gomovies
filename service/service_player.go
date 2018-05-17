@@ -107,6 +107,10 @@ func (srv *PlayerService) Dequeue(i int) (queue []string) {
 	return
 }
 
+func (srv *PlayerService) Queue() []string {
+	return srv.queue.All()
+}
+
 func (srv *PlayerService) Mute() error {
 	return srv.player.Mute()
 }
