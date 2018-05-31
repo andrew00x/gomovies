@@ -172,18 +172,20 @@ func (p *OMXPlayer) SetPosition(position time.Duration) error {
 func (p *OMXPlayer) Status() (status api.PlayerStatus, err error) {
 	control := p.control
 	if control != nil {
-		var playing string
-		var position, duration time.Duration
-		var pbs omxcontrol.Status
-		playing, err = control.Playing()
-		position, err = control.Position()
-		duration, err = control.Duration()
-		pbs, err = control.PlaybackStatus()
-		if err == nil {
-			status.Playing = playing
-			status.Position = int(position / time.Second)
-			status.Duration = int(duration / time.Second)
-			status.Paused = pbs == omxcontrol.Paused
+		if ready, e := control.CanControl(); ready && e == nil {
+			var playing string
+			var position, duration time.Duration
+			var pbs omxcontrol.Status
+			playing, err = control.Playing()
+			position, err = control.Position()
+			duration, err = control.Duration()
+			pbs, err = control.PlaybackStatus()
+			if err == nil {
+				status.Playing = playing
+				status.Position = int(position / time.Second)
+				status.Duration = int(duration / time.Second)
+				status.Paused = pbs == omxcontrol.Paused
+			}
 		}
 	}
 	return
