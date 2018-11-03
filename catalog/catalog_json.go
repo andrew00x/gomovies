@@ -119,6 +119,10 @@ func (ctl *JsonCatalog) Refresh() error {
 func (ctl *JsonCatalog) Save() (err error) {
 	ctl.mu.Lock()
 	defer ctl.mu.Unlock()
+	return ctl.save()
+}
+
+func (ctl *JsonCatalog) save() (err error) {
 	f, err := os.OpenFile(catalogFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return
@@ -147,6 +151,8 @@ func (ctl *JsonCatalog) Update(u api.Movie) (api.Movie, error) {
 	m := *p
 	exists, err := file.Exists(p.Path)
 	m.Available = exists && err == nil
+
+	ctl.save()
 
 	return m, nil
 }
