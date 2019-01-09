@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"github.com/andrew00x/gomovies/api"
-	"github.com/andrew00x/gomovies/config"
-	"github.com/andrew00x/gomovies/file"
-	"github.com/andrew00x/gomovies/util"
+	"github.com/andrew00x/gomovies/pkg/api"
+	"github.com/andrew00x/gomovies/pkg/config"
+	"github.com/andrew00x/gomovies/pkg/file"
+	"github.com/andrew00x/gomovies/pkg/util"
 )
 
 type JsonCatalog struct {

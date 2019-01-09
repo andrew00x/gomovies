@@ -31,7 +31,7 @@ Create in directory *$HOME/.gomovies/* file *config.json* with following content
 ## Installation
 Clone repository to your Go workspace and run:
 ```
-pi@raspberrypi:~$ go install github.com/andrew00x/gomovies
+pi@raspberrypi:~$ make
 ``` 
 And start it:
-```gomovies``` or ```nohup gomovies &```
+```./gomovies``` or in background ```nohup ./gomovies &```

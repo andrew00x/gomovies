@@ -3,9 +3,9 @@ package service
 import (
 	"sync"
 	"time"
-	"github.com/andrew00x/gomovies/api"
-	"github.com/andrew00x/gomovies/config"
-	"github.com/andrew00x/gomovies/player"
+	"github.com/andrew00x/gomovies/pkg/api"
+	"github.com/andrew00x/gomovies/pkg/config"
+	"github.com/andrew00x/gomovies/pkg/player"
 	"github.com/andrew00x/omxcontrol"
 )
 

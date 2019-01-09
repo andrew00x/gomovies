@@ -2,8 +2,8 @@ package player
 
 import (
 	"time"
-	"github.com/andrew00x/gomovies/api"
-	"github.com/andrew00x/gomovies/config"
+	"github.com/andrew00x/gomovies/pkg/api"
+	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/omxcontrol"
 )
 
