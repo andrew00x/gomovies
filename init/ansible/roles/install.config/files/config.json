@@ -1,0 +1,12 @@
+{
+  "dirs": [
+  ],
+  "video_file_exts": [
+    ".avi",
+    ".mkv",
+    ".m4v"
+  ],
+  "web_dir": "",
+  "tmdb_api_key": "",
+  "tmdb_poster_small": ""
+}

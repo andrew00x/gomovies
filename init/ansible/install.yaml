@@ -1,0 +1,7 @@
+- name: install
+  hosts: raspberry
+  any_errors_fatal: true
+  roles:
+    - role: install.binaries
+    - role: install.systemd
+    - role: install.config

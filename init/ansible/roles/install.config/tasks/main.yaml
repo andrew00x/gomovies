@@ -1,0 +1,5 @@
+- name: Copy configuration
+  copy:
+    src: config.json
+    dest: /home/pi/.gomovies/
+  when: install_config == "true"

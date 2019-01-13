@@ -11,6 +11,8 @@ SRC_DIRS=$(CMD_DIR) pkg
 OUTPUT_DIR=bin
 OUTPUT=gomovies
 
+ANSIBLE_DIR=init/ansible
+
 .DEFAULT_GOAL=build
 
 clean:
@@ -39,3 +41,29 @@ build-rpi3: clean
 		-w "/go/src/$(PKG)" \
 		golang:$(GO_VERSION) \
 		/bin/bash -c "go get $(DEPS) && go build -v -installsuffix "static" -o $(OUTPUT_DIR)/arm/$(OUTPUT) $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))"
+
+install-rpi3:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/arm/$(OUTPUT)" \
+		$(if $(config), --extra-vars "install_config=true") \
+		$(if $(systemd), --extra-vars "install_systemd=true") \
+		$(ANSIBLE_DIR)/install.yaml
+
+service-start:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--extra-vars "service_state=started" \
+		$(ANSIBLE_DIR)/service.yaml
+
+service-stop:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--extra-vars "service_state=stopped" \
+		$(ANSIBLE_DIR)/service.yaml
+
+service-restart:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--extra-vars "service_state=restarted" \
+		$(ANSIBLE_DIR)/service.yaml

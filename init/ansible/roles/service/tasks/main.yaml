@@ -1,0 +1,7 @@
+---
+
+- name: Update service state
+  systemd:
+    name: "{{ service.name }}"
+    state: "{{ service_state }}"
+  become: yes

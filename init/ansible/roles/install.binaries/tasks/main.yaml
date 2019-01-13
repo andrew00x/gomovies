@@ -1,0 +1,4 @@
+- name: Copy binaries
+  copy:
+    src: "{{ gomovies_bin }}"
+    dest: /home/pi/bin/

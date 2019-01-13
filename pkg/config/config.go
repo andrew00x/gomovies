@@ -38,7 +38,7 @@ func loadConfig(path string) (*Config, error) {
 		conf.VideoFileExts = append(conf.VideoFileExts, ".avi", ".mkv")
 	}
 	if conf.TMDbPosterSmall == "" {
-		conf.TMDbPosterSmall = "w154"
+		conf.TMDbPosterSmall = "w92"
 	}
 	if conf.TMDbPosterLarge == "" {
 		conf.TMDbPosterLarge = "w500"
