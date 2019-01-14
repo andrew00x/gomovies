@@ -35,3 +35,5 @@ pi@raspberrypi:~$ make
 ``` 
 And start it:
 ```./gomovies``` or in background ```nohup ./gomovies &```
+
+Run `make help` for details.
