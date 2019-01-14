@@ -15,6 +15,9 @@ ANSIBLE_DIR=init/ansible
 
 .DEFAULT_GOAL=build
 
+build-rpi3: ARCH=arm
+install-rpi3-%: ARCH=arm
+
 clean:
 	@go clean
 	@rm -rf $(OUTPUT_DIR)
@@ -35,19 +38,44 @@ build-rpi3: clean
 	@docker run \
 		--rm \
 		-e GOOS=linux \
-		-e GOARCH=arm \
+		-e GOARCH=$(ARCH) \
 		-e GOARM=7 \
 		-v "$$(pwd):/go/src/$(PKG)" \
 		-w "/go/src/$(PKG)" \
 		golang:$(GO_VERSION) \
-		/bin/bash -c "go get $(DEPS) && go build -v -installsuffix "static" -o $(OUTPUT_DIR)/arm/$(OUTPUT) $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))"
+		/bin/bash -c "go get $(DEPS) && go build -v -installsuffix "static" -o $(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))"
 
-install-rpi3:
+install-rpi3-all:
 	@ansible-playbook \
 		-i $(ANSIBLE_DIR)/raspberry.ini \
-		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/arm/$(OUTPUT)" \
-		$(if $(config), --extra-vars "install_config=true") \
-		$(if $(systemd), --extra-vars "install_systemd=true") \
+		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) $(if $(WEB_UI_TAR), web_ui_tar=$(WEB_UI_TAR))" \
+		$(ANSIBLE_DIR)/install.yaml
+
+install-rpi3-bin:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/$(ARCH)/$(OUTPUT)" \
+		--tags "binaries" \
+		$(ANSIBLE_DIR)/install.yaml
+
+install-rpi3-config:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--tags "configuration" \
+		$(ANSIBLE_DIR)/install.yaml
+
+install-rpi3-systemd:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/$(ARCH)/$(OUTPUT)" \
+		--tags "systemd" \
+		$(ANSIBLE_DIR)/install.yaml
+
+install-rpi3-webui:
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		$(if $(WEB_UI_TAR), --extra-vars "web_ui_tar=$(WEB_UI_TAR)") \
+		--tags "web_ui" \
 		$(ANSIBLE_DIR)/install.yaml
 
 service-start:
