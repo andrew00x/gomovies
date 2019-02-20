@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/stretchr/testify/assert"

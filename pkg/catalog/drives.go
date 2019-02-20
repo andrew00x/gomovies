@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/file"
 )

@@ -3,6 +3,7 @@ package service
 import (
 	"sync"
 	"time"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/gomovies/pkg/player"

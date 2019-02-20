@@ -3,6 +3,7 @@ package catalog
 import (
 	"sort"
 	"testing"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/stretchr/testify/assert"
 )

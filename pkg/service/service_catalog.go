@@ -2,6 +2,7 @@ package service
 
 import (
 	"sort"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/catalog"
 	"github.com/andrew00x/gomovies/pkg/config"

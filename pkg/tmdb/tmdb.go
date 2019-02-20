@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"sync"
 	"strconv"
+	"sync"
 	"time"
 )
 

@@ -2,14 +2,15 @@ package player
 
 import (
 	"time"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/omxcontrol"
 )
 
-type PlayerFactory func(conf *config.Config) (Player, error)
+type Factory func(conf *config.Config) (Player, error)
 
-var playerFactory PlayerFactory
+var playerFactory Factory
 
 func Create(conf *config.Config) (Player, error) {
 	return playerFactory(conf)

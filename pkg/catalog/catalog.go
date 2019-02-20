@@ -5,9 +5,9 @@ import (
 	"github.com/andrew00x/gomovies/pkg/config"
 )
 
-type CatalogFactory func(*config.Config) (Catalog, error)
+type Factory func(*config.Config) (Catalog, error)
 
-var catalogFactory CatalogFactory
+var catalogFactory Factory
 
 func CreateCatalog(conf *config.Config) (Catalog, error) {
 	return catalogFactory(conf)

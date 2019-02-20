@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/gomovies/pkg/file"
