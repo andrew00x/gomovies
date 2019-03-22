@@ -2,12 +2,19 @@ package util
 
 import "sync"
 
-type Cache struct {
+type Key interface{}
+
+type Cache interface {
+	Get(k Key) (interface{}, error)
+	GetOrLoad(k Key, loader func(k Key) (interface{}, error)) (interface{}, error)
+	Delete(k Key) bool
+	Clean()
+}
+
+type cache struct {
 	mu    sync.Mutex
 	items map[Key]*item
 }
-
-type Key interface{}
 
 type item struct {
 	value  interface{}
@@ -15,11 +22,11 @@ type item struct {
 	loaded chan bool
 }
 
-func CreateCache() *Cache {
-	return &Cache{items: make(map[Key]*item)}
+func CreateCache() Cache {
+	return &cache{items: make(map[Key]*item)}
 }
 
-func (c *Cache) Get(k Key) (interface{}, error) {
+func (c *cache) Get(k Key) (interface{}, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if result, found := c.items[k]; found {
@@ -28,7 +35,7 @@ func (c *Cache) Get(k Key) (interface{}, error) {
 	return nil, nil
 }
 
-func (c *Cache) GetOrLoad(k Key, loader func(k Key) (interface{}, error)) (interface{}, error) {
+func (c *cache) GetOrLoad(k Key, loader func(k Key) (interface{}, error)) (interface{}, error) {
 	c.mu.Lock()
 	result, found := c.items[k]
 	if found {
@@ -45,7 +52,7 @@ func (c *Cache) GetOrLoad(k Key, loader func(k Key) (interface{}, error)) (inter
 	return result.value, result.err
 }
 
-func (c *Cache) Delete(k Key) bool {
+func (c *cache) Delete(k Key) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if _, found := c.items[k]; found {
@@ -55,7 +62,7 @@ func (c *Cache) Delete(k Key) bool {
 	return false
 }
 
-func (c *Cache) Clean() {
+func (c *cache) Clean() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.items = make(map[Key]*item)

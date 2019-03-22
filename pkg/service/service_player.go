@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/gomovies/pkg/player"
@@ -41,7 +43,10 @@ func (l *playListener) StartPlay(path string) {
 func (l *playListener) StopPlay(path string) {
 	next := l.queue.Pop()
 	if next != "" {
-		l.player.PlayMovie(next)
+		err := l.player.PlayMovie(next)
+		if err != nil {
+			log.WithFields(log.Fields{"file": next, "err": err}).Error("Unable start play")
+		}
 	}
 }
 

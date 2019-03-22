@@ -1,8 +1,9 @@
 package catalog
 
 import (
-	"log"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
@@ -33,7 +34,7 @@ type SimpleIndex struct {
 
 func (i *SimpleIndex) Add(m api.Movie) {
 	i.idx[strings.ToLower(m.Title)] = m.Id
-	log.Printf("Add file '%s' to index\n", m.Path)
+	log.WithFields(log.Fields{"file": m.Path}).Debug("Add file to index")
 }
 
 func (i *SimpleIndex) Find(title string) []int {

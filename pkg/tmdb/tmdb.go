@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type MovieSearchResult struct {
@@ -154,7 +155,9 @@ func (tmdb *TmDb) GetMovie(id int) (MovieDetails, error) {
 	reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, id, tmdb.apiKey)
 	mov := MovieDetails{}
 	_, err := tmdb.request(reqUrl, &mov)
-	log.Printf("Retrieve movie details from TMDb, movie id: %d, error: %v\n", id, err)
+	if err != nil {
+		log.WithFields(log.Fields{"movie_id": id, "err": err}).Error("Error occurred while retrieving movie details from TMDb")
+	}
 	return mov, err
 }
 
@@ -171,7 +174,11 @@ func (tmdb *TmDb) request(reqUrl string, payload interface{}) (interface{}, erro
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if clsErr := resp.Body.Close(); clsErr != nil {
+			log.Warn(clsErr)
+		}
+	}()
 
 	if resp.Header.Get(remainingReqLimitHeader) == "0" {
 		rateLimitEnds, err := strconv.ParseInt(resp.Header.Get(rateLimitEndsHeader), 10, 64)

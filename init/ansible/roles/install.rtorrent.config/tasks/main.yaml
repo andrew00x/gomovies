@@ -1,0 +1,24 @@
+- name: Create rtorrent home directory
+  file:
+    path: "{{ rtorrent.home_dir }}"
+    state: directory
+
+- name: Create rtorrent logs directory
+  file:
+    path: "{{ rtorrent.log_dir }}"
+    state: directory
+
+- name: Create rtorrent session directory
+  file:
+    path: "{{ rtorrent.session_dir }}"
+    state: directory
+
+- name: Create torrent download directory
+  file:
+    path: "{{ torrent_download_dir }}"
+    state: directory
+
+- name: Create rtorrent.rc file
+  template:
+    src: rtorrent.rc.j2
+    dest: "{{ rtorrent.rc_file }}"

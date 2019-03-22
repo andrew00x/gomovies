@@ -33,6 +33,21 @@ type PlayerStatus struct {
 	Paused   bool   `json:"paused"`
 }
 
+type TorrentDownload struct {
+	Name          string            `json:"name"`
+	Path          string            `json:"path"`
+	Size          int64             `json:"size"`
+	CompletedSize int64             `json:"completed_size"`
+	Completed     bool              `json:"completed"`
+	Ratio         float32           `json:"ratio"`
+	Attrs         map[string]string `json:"attrs,omitempty"`
+}
+
+type TorrentDownloadFile struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
 type MessagePayload struct {
 	Message string `json:"message,omitempty"`
 }

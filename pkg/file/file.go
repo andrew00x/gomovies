@@ -16,12 +16,16 @@ func Exists(path string) (bool, error) {
 	return true, err
 }
 
-func ReadLines(file string, lineHandler func(string) bool) error {
-	f, err := os.Open(file)
-	if err != nil {
-		return err
+func ReadLines(file string, lineHandler func(string) bool) (err error) {
+	var f *os.File
+	if f, err = os.Open(file); err != nil {
+		return
 	}
-	defer f.Close()
+	defer func() {
+		if clsErr := f.Close(); clsErr != nil {
+			err = clsErr
+		}
+	}()
 	input := bufio.NewScanner(f)
 	for input.Scan() {
 		line := input.Text()
@@ -29,5 +33,5 @@ func ReadLines(file string, lineHandler func(string) bool) error {
 			break
 		}
 	}
-	return nil
+	return
 }

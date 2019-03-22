@@ -3,11 +3,12 @@ package player
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
@@ -77,7 +78,9 @@ func (p *OMXPlayer) Play() error {
 }
 
 func (p *OMXPlayer) PlayMovie(path string) (err error) {
-	p.Stop()
+	if stpErr := p.Stop(); stpErr != nil {
+		log.WithFields(log.Fields{"err": err}).Error("Error occurred while stopping player")
+	}
 	err = p.start(path)
 	if err == nil {
 		var control *omxcontrol.OmxCtrl
@@ -85,7 +88,10 @@ func (p *OMXPlayer) PlayMovie(path string) (err error) {
 		if err == nil {
 			p.control = control
 		} else {
-			p.quit()
+			log.WithFields(log.Fields{"err": err}).Error("Error occurred while setup DBus connection to omxplayer")
+			if stpErr := p.Stop(); stpErr != nil {
+				log.WithFields(log.Fields{"err": stpErr}).Error("Error occurred while trying to stop player after unsuccessful start")
+			}
 		}
 	}
 	if err == nil {
@@ -93,7 +99,9 @@ func (p *OMXPlayer) PlayMovie(path string) (err error) {
 			l.StartPlay(path)
 		}
 		go func() {
-			p.process.Wait()
+			if _, waitErr := p.process.Wait(); waitErr != nil {
+				log.WithFields(log.Fields{"err": err}).Error("Player process ended with error")
+			}
 			for _, l := range p.listeners {
 				l.StopPlay(path)
 			}
@@ -249,12 +257,15 @@ func (p *OMXPlayer) action(actionCode omxcontrol.KeyboardAction) error {
 func (p *OMXPlayer) quit() (err error) {
 	process := p.process
 	if process != nil {
-		log.Printf("kill omxplayer, pid: (%d)\n", process.Pid)
-		pgid, err := syscall.Getpgid(process.Pid)
-		if err == nil {
-			syscall.Kill(-pgid, syscall.SIGTERM)
+		log.WithFields(log.Fields{"PID": process.Pid}).Info("kill omxplayer")
+		var pgid int
+		if pgid, err = syscall.Getpgid(process.Pid); err != nil {
+			return
 		}
-		process.Wait()
+		if err = syscall.Kill(-pgid, syscall.SIGTERM); err != nil {
+			return
+		}
+		_, err = process.Wait()
 		p.process = nil
 		p.control = nil
 	}
@@ -262,15 +273,15 @@ func (p *OMXPlayer) quit() (err error) {
 }
 
 func setupControl() (control *omxcontrol.OmxCtrl, err error) {
-	attempts := 50
-	retryDelay := time.Duration(100) * time.Millisecond
+	attempts := 20
+	retryDelay := time.Duration(500) * time.Millisecond
 	var ready bool
 	for i := 1; ; i++ {
 		time.Sleep(retryDelay)
 		control, err = omxcontrol.Create()
 		ready, err = control.CanControl()
 		if err == nil && ready {
-			log.Printf("setup omxplayer control after %d attempts\n", i)
+			log.WithFields(log.Fields{"attempts": i}).Info("Setup omxplayer control")
 			return
 		}
 		if i > attempts {
@@ -287,16 +298,7 @@ func (p *OMXPlayer) start(path string) (err error) {
 	err = cmd.Start()
 	if err == nil {
 		p.process = cmd.Process
-		log.Printf("started omxplayer, pid: (%d); playing: %s\n", p.process.Pid, path)
+		log.WithFields(log.Fields{"PID": p.process.Pid, "file": path}).Info("Started omxplayer")
 	}
 	return
 }
-
-/*
-func (p *OMXPlayer) isRunning() (alive bool) {
-	if err := p.process.Signal(syscall.Signal(0)); err == nil {
-		alive = true
-	}
-	return
-}
-*/

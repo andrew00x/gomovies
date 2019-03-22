@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetNonexistentItem(t *testing.T) {
-	c := Cache{items: map[Key]*item{}}
+	c := cache{items: map[Key]*item{}}
 	k := 1
 	v, e := c.Get(k)
 	assert.Nil(t, v)
@@ -17,7 +17,7 @@ func TestGetNonexistentItem(t *testing.T) {
 }
 
 func TestGetItem(t *testing.T) {
-	c := Cache{items: map[Key]*item{}}
+	c := cache{items: map[Key]*item{}}
 	value := "item_1"
 	k := 1
 	c.items[k] = &item{value: value}
@@ -27,7 +27,7 @@ func TestGetItem(t *testing.T) {
 }
 
 func TestGetError(t *testing.T) {
-	c := Cache{items: map[Key]*item{}}
+	c := cache{items: map[Key]*item{}}
 	err := errors.New("error")
 	k := 1
 	c.items[k] = &item{err: err}
@@ -37,7 +37,7 @@ func TestGetError(t *testing.T) {
 }
 
 func TestLoadItem(t *testing.T) {
-	c := Cache{items: map[Key]*item{}}
+	c := cache{items: map[Key]*item{}}
 	value := "loaded_item_1"
 	loader := func(k Key) (interface{}, error) {
 		if k == 1 {
@@ -51,7 +51,7 @@ func TestLoadItem(t *testing.T) {
 }
 
 func TestLoadItemOnlyOnce(t *testing.T) {
-	c := Cache{items: map[Key]*item{}}
+	c := cache{items: map[Key]*item{}}
 	counter := 0
 	var mu sync.Mutex
 	loader := func(k Key) (interface{}, error) {
@@ -65,7 +65,7 @@ func TestLoadItemOnlyOnce(t *testing.T) {
 	g.Add(callNum)
 	for i := 0; i < callNum; i++ {
 		go func() {
-			c.GetOrLoad(1, loader)
+			_, _ = c.GetOrLoad(1, loader)
 			g.Done()
 		}()
 	}
@@ -77,7 +77,7 @@ func TestDeleteItem(t *testing.T) {
 	m := map[Key]*item{}
 	k := 1
 	m[k] = &item{value: "value"}
-	c := Cache{items: m}
+	c := cache{items: m}
 	d := c.Delete(k)
 	assert.True(t, d)
 	_, found := m[k]

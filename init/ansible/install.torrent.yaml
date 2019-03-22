@@ -1,0 +1,17 @@
+- name: install torrent client
+  hosts: raspberry
+  any_errors_fatal: true
+  roles:
+    - role: install.apt_get
+      vars:
+        apps:
+          - rtorrent
+          - screen
+      tags:
+        - torrent
+    - role: install.rtorrent.config
+      tags:
+        - configuration
+    - role: install.rtorrent.systemd
+      tags:
+        - systemd

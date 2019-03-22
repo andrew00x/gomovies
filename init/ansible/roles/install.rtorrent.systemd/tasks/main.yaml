@@ -1,0 +1,12 @@
+- name: Copy systemd service file
+  template:
+    src: "{{ rtorrent.service.name }}.service.j2"
+    dest: "/etc/systemd/system/{{ rtorrent.service.name }}.service"
+  become: yes
+
+- name: Enable systemd service
+  systemd:
+    name: "{{ rtorrent.service.name }}"
+    enabled: yes
+    masked: no
+  become: yes

@@ -1,0 +1,1 @@
+rtorrent_rpc_addr: "{{ rtorrent.rpc_socket_file }}"

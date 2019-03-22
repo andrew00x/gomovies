@@ -1,0 +1,9 @@
+- name: Create config directory
+  file:
+    path: "{{ app.config.home_dir }}"
+    state: directory
+
+- name: Copy configuration
+  template:
+    src: config.json.j2
+    dest: "{{ app.config.home_dir }}/config.json"

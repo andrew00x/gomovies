@@ -1,2 +1,17 @@
-service:
-  name: gomovies
+gomovies_home_dir: /home/pi/.gomovies
+app:
+  config:
+    home_dir: "{{ gomovies_home_dir }}"
+    web_dir: "{{ gomovies_home_dir }}/web"
+  service:
+    name: gomovies
+
+rtorrent_home_dir: /home/pi/.rtorrent
+rtorrent:
+  home_dir: "{{ rtorrent_home_dir }}"
+  rc_file: "{{ rtorrent_home_dir }}/rtorrent.rc"
+  session_dir: "{{ rtorrent_home_dir }}/session"
+  log_dir: "{{ rtorrent_home_dir }}/log"
+  rpc_socket_file: "{{ rtorrent_home_dir }}/rpc.socket"
+  service:
+    name: rtorrent

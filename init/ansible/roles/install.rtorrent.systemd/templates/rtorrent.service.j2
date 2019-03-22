@@ -1,0 +1,15 @@
+[Unit]
+Description=rtorrent in screen
+After=network.target
+
+[Service]
+Type=forking
+KillMode=none
+User=pi
+WorkingDirectory=/home/pi
+ExecStart=/usr/bin/screen -dm -S rtorrent /usr/bin/rtorrent -n -o import={{ rtorrent.rc_file }}
+ExecStop=/usr/bin/pkill -f -x '/usr/bin/rtorrent -n -o import={{ rtorrent.rc_file }}'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

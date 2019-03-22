@@ -1,12 +1,12 @@
 - name: Copy systemd service file
   copy:
-    src: "{{ service.name }}.service"
+    src: "{{ app.service.name }}.service"
     dest: /etc/systemd/system/
   become: yes
 
 - name: Enable systemd service
   systemd:
-    name: "{{ service.name }}"
+    name: "{{ app.service.name }}"
     enabled: yes
     masked: no
   become: yes

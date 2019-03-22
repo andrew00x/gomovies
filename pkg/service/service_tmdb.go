@@ -2,11 +2,9 @@ package service
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
@@ -15,9 +13,10 @@ import (
 )
 
 type TMDbService struct {
-	conf         *config.Config
-	detailsCache *util.Cache
-	tmDbConf     tmdb.Configuration
+	conf                 *config.Config
+	detailsCache         util.Cache
+	tmDbConf             tmdb.Configuration
+	tmDbConfUpdateTicker *time.Ticker
 }
 
 func CreateTMDbService(conf *config.Config) (*TMDbService, error) {
@@ -70,24 +69,24 @@ func (srv *TMDbService) SearchDetails(query string) ([]api.MovieDetails, error) 
 func (srv *TMDbService) start() (err error) {
 	srv.tmDbConf, err = tmdb.GetTmDbInstance(srv.conf.TMDbApiKey).GetConfiguration()
 	if err == nil {
-		ticker := time.NewTicker(48 * time.Hour)
+		srv.tmDbConfUpdateTicker = time.NewTicker(48 * time.Hour)
 		go func() {
-			for t := range ticker.C {
+			for range srv.tmDbConfUpdateTicker.C {
 				if c, err := tmdb.GetTmDbInstance(srv.conf.TMDbApiKey).GetConfiguration(); err != nil {
-					log.Printf("failed update TMDb configuration at: %s, error: %v\n", t.Format(time.ANSIC), err)
+					log.WithFields(log.Fields{"err": err}).Error("Failed update TMDb configuration")
 				} else {
 					srv.tmDbConf = c
-					log.Printf("sucessfully update configuration at: %s\n", t.Format(time.ANSIC))
+					log.Info("Successfully update configuration")
 				}
 			}
 		}()
+	}
+	return
+}
 
-		quit := make(chan os.Signal)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		go func() {
-			<- quit
-			ticker.Stop()
-		}()
+func (srv *TMDbService) Stop() {
+	if srv.tmDbConfUpdateTicker != nil {
+		srv.tmDbConfUpdateTicker.Stop()
 	}
 	return
 }

@@ -17,11 +17,11 @@ type drive struct {
 }
 
 var devcd string
-var etccd string
+var etcDir string
 
 func init() {
 	devcd = "/dev"
-	etccd = "/etc"
+	etcDir = "/etc"
 }
 
 func mountedDrives() ([]*drive, error) {
@@ -97,7 +97,7 @@ func drivesById(drives map[string]*drive) error {
 }
 
 func setMountPoints(drives map[string]*drive) error {
-	mtab := filepath.Join(etccd, "mtab")
+	mtab := filepath.Join(etcDir, "mtab")
 	return file.ReadLines(mtab, func(line string) bool {
 		fields := strings.Fields(line)
 		devName := filepath.Base(fields[0])

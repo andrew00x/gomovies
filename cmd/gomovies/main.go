@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
@@ -23,53 +26,77 @@ var conf *config.Config
 var catalogService *service.CatalogService
 var playerService *service.PlayerService
 var tmDbService *service.TMDbService
+var torrentService *service.TorrentService
+
+func init() {
+	v := flag.Bool("v", false, "makes logger be more verbose, debug level")
+	flag.Parse()
+	if *v {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+}
 
 func main() {
 	var err error
 	conf, err = config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Could not read configuration: %v", err)
+		log.WithFields(log.Fields{"err": err}).Fatal("Could not read configuration")
 	}
 
 	catalogService, err = service.CreateCatalogService(conf)
 	if err != nil {
-		log.Fatalf("Could not create catalog: %v", err)
+		log.WithFields(log.Fields{"err": err}).Fatal("Could not create catalog")
 	}
 
 	playerService, err = service.CreatePlayerService(conf)
 	if err != nil {
-		log.Fatalf("Could not create player: %v", err)
+		log.WithFields(log.Fields{"err": err}).Fatal("Could not create player")
 	}
 
-	tmDbService, err = service.CreateTMDbService(conf)
-	if err != nil {
-		log.Fatalf("Could not the Movie DB service: %v", err)
+	if conf.TMDbApiKey != "" {
+		tmDbService, err = service.CreateTMDbService(conf)
+		if err != nil {
+			log.WithFields(log.Fields{"err": err}).Fatal("Could not create The Movie DB service")
+		}
 	}
 
-	log.Println("Start loading details from 'The Movie DB'")
+	if conf.TorrentRemoteCtrlAddr != "" {
+		torrentService = service.CreateTorrentService(conf)
+	}
+
+	log.Info("Start loading details from 'The Movie DB'")
 	startTMDbLoad := time.Now()
 	for _, m := range catalogService.All() {
 		if m.TMDbId > 0 {
-			tmDbService.MovieDetails(m.TMDbId)
+			if _, err = tmDbService.MovieDetails(m.TMDbId); err != nil {
+				log.WithFields(log.Fields{"err": err}).Warn("Error occurred while retrieving data from 'The Movie DB'")
+			}
 		}
 	}
 	stopTMDbLoad := time.Now()
-	log.Printf("Stop loading details from 'The Movie DB', spent %ds\n", stopTMDbLoad.Sub(startTMDbLoad)/time.Second)
+	log.WithFields(log.Fields{
+		"spent_time": stopTMDbLoad.Sub(startTMDbLoad) / time.Second,
+	}).Info("Stop loading details from 'The Movie DB'", )
 
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
-	log.Printf("Starting on port: %d\n", conf.WebPort)
 
 	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-quit
-		if err := catalogService.Save(); err != nil {
-			log.Printf("Unable save catalog file: %v\n", err)
+		var err error
+		if err = catalogService.Save(); err != nil {
+			log.WithFields(log.Fields{"err": err}).Error("Unable save catalog file")
 		} else {
-			log.Println("Save catalog file")
+			log.Info("Catalog file saved")
 		}
-		if err := web.Shutdown(context.Background()); err != nil {
-			log.Fatalf("Could not shutdown: %v", err)
+		if tmDbService != nil {
+			tmDbService.Stop()
+		}
+		if err = web.Shutdown(context.Background()); err != nil {
+			log.WithFields(log.Fields{"err": err}).Fatal("Could not shutdown")
 		}
 	}()
 
@@ -105,17 +132,24 @@ func main() {
 	http.HandleFunc("/api/player/volume", volume)
 	http.HandleFunc("/api/player/volumedown", volumeDown)
 	http.HandleFunc("/api/player/volumeup", volumeUp)
+	http.HandleFunc("/api/torrent/add", torrentAddFile)
+	http.HandleFunc("/api/torrent/list", torrentListDownloads)
+	http.HandleFunc("/api/torrent/files", torrentListFiles)
+	http.HandleFunc("/api/torrent/stop", torrentStop)
+	http.HandleFunc("/api/torrent/start", torrentStart)
+	http.HandleFunc("/api/torrent/delete", torrentDelete)
 	webClient()
 
+	log.WithFields(log.Fields{"port": conf.WebPort}).Info("Starting", )
 	if err = web.ListenAndServe(); err != http.ErrServerClosed {
-		log.Fatalf("Could not start http listener: %v\n", err)
+		log.WithFields(log.Fields{"err": err}).Fatal("Could not start http listener")
 	}
 }
 
 func webClient() {
 	webDir := conf.WebDir
 	if webDir != "" {
-		log.Printf("Starting web client from directory: %s\n", webDir)
+		log.WithFields(log.Fields{"dir": webDir}).Info("Starting web client")
 		fs := http.FileServer(http.Dir(webDir))
 		http.Handle("/", fs)
 	}
@@ -358,6 +392,67 @@ func volumeUp(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(vol{v}, err, w)
 }
 
+func torrentAddFile(w http.ResponseWriter, r *http.Request) {
+	var torrent torrentFile
+	var err error
+	parser := json.NewDecoder(r.Body)
+	if err = parser.Decode(&torrent); err == nil {
+		var file []byte
+		if file, err = base64.StdEncoding.DecodeString(torrent.Content); err == nil {
+			err = torrentService.AddFile(file)
+		}
+	}
+	writeJsonResponse(nil, err, w)
+}
+
+func torrentListDownloads(w http.ResponseWriter, _ *http.Request) {
+	d, err := torrentService.Torrents()
+	writeJsonResponse(d, err, w)
+}
+
+func torrentListFiles(w http.ResponseWriter, r *http.Request) {
+	var d api.TorrentDownload
+	var err error
+	var files []api.TorrentDownloadFile
+	if d, err = parseTorrentDownload(r); err != nil {
+		files, err = torrentService.Files(d)
+	}
+	writeJsonResponse(files, err, w)
+}
+
+func torrentStop(w http.ResponseWriter, r *http.Request) {
+	var d api.TorrentDownload
+	var err error
+	if d, err = parseTorrentDownload(r); err != nil {
+		err = torrentService.Stop(d)
+	}
+	writeJsonResponse(nil, err, w)
+}
+
+func torrentStart(w http.ResponseWriter, r *http.Request) {
+	var d api.TorrentDownload
+	var err error
+	if d, err = parseTorrentDownload(r); err != nil {
+		err = torrentService.Start(d)
+	}
+	writeJsonResponse(nil, err, w)
+}
+
+func torrentDelete(w http.ResponseWriter, r *http.Request) {
+	var d api.TorrentDownload
+	var err error
+	if d, err = parseTorrentDownload(r); err != nil {
+		err = torrentService.Delete(d)
+	}
+	writeJsonResponse(nil, err, w)
+}
+
+func parseTorrentDownload(r *http.Request) (d api.TorrentDownload, err error) {
+	parser := json.NewDecoder(r.Body)
+	err = parser.Decode(&d)
+	return
+}
+
 func writeJsonResponse(body interface{}, err error, w http.ResponseWriter) {
 	if body == nil && err == nil {
 		return
@@ -365,11 +460,15 @@ func writeJsonResponse(body interface{}, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	if err == nil {
-		encoder.Encode(body)
+		if e := encoder.Encode(body); e != nil {
+			log.WithFields(log.Fields{"err": err}).Error("Error occurred while write response")
+		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 		m := api.MessagePayload{Message: err.Error()}
-		encoder.Encode(m)
+		if e := encoder.Encode(m); e != nil {
+			log.WithFields(log.Fields{"err": err}).Error("Error occurred while write response")
+		}
 	}
 }
 
@@ -387,4 +486,8 @@ type position struct {
 
 type vol struct {
 	Volume float64 `json:"volume"`
+}
+
+type torrentFile struct {
+	Content string `json:"file"`
 }

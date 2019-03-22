@@ -1,10 +1,11 @@
 - name: Create web UI targer directory
   file:
-    path: "{{ target_dir }}"
+    path: "{{ app.config.web_dir }}"
     state: directory
+
 - name: Copy web UI tar archive to raspberry PI
   unarchive:
     src: "{{ web_ui_tar }}"
-    dest: "{{ target_dir }}"
+    dest: "{{ app.config.web_dir }}/"
     extra_opts:
       - --strip-components=1

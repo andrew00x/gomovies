@@ -1,0 +1,22 @@
+- name: install gomovies
+  hosts: raspberry
+  any_errors_fatal: true
+  roles:
+    - role: install.apt_get
+      vars:
+        apps:
+          - omxplayer
+      tags:
+        - player
+    - role: install.gomovies.binaries
+      tags:
+        - binaries
+    - role: install.gomovies.config
+      tags:
+        - configuration
+    - role: install.gomovies.webui
+      tags:
+        - web_ui
+    - role: install.gomovies.systemd
+      tags:
+        - systemd

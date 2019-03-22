@@ -7,29 +7,34 @@ import (
 )
 
 type Config struct {
-	Dirs            []string `json:"dirs"`
-	VideoFileExts   []string `json:"video_file_exts"`
-	WebDir          string   `json:"web_dir"`
-	WebPort         int      `json:"web_port"`
-	TMDbApiKey      string   `json:"tmdb_api_key"`
-	TMDbPosterSmall string   `json:"tmdb_poster_small"`
-	TMDbPosterLarge string   `json:"tmdb_poster_large"`
+	Dirs                  []string `json:"dirs"`
+	VideoFileExts         []string `json:"video_file_exts"`
+	WebDir                string   `json:"web_dir"`
+	WebPort               int      `json:"web_port"`
+	TMDbApiKey            string   `json:"tmdb_api_key"`
+	TMDbPosterSmall       string   `json:"tmdb_poster_small"`
+	TMDbPosterLarge       string   `json:"tmdb_poster_large"`
+	TorrentRemoteCtrlAddr string   `json:"torrent_remote_ctrl_addr"`
 }
 
 func LoadConfig() (*Config, error) {
 	return loadConfig(filepath.Join(ConfDir(), "config.json"))
 }
 
-func loadConfig(path string) (*Config, error) {
+func loadConfig(path string) (conf *Config, err error) {
 	configFile, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return
 	}
-	defer configFile.Close()
+	defer func() {
+		if clsErr := configFile.Close(); clsErr != nil {
+			err = clsErr
+		}
+	}()
+	conf = &Config{}
 	parser := json.NewDecoder(configFile)
-	var conf Config
-	if err = parser.Decode(&conf); err != nil {
-		return nil, err
+	if err = parser.Decode(conf); err != nil {
+		return
 	}
 	if conf.WebPort == 0 {
 		conf.WebPort = 8000
@@ -43,7 +48,7 @@ func loadConfig(path string) (*Config, error) {
 	if conf.TMDbPosterLarge == "" {
 		conf.TMDbPosterLarge = "w500"
 	}
-	return &conf, nil
+	return
 }
 
 func ConfDir() string {

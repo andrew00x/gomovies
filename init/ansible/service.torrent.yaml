@@ -3,3 +3,5 @@
   any_errors_fatal: true
   roles:
     - role: service
+      vars:
+        service_name: "{{ rtorrent.service.name }}"
