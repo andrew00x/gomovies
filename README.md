@@ -17,7 +17,7 @@ Create in directory *$HOME/.gomovies/* file *config.json* with following content
 ### Supported configuration options
 
 #### Required
-* **dirs** - list of directories with video files
+* **dirs** - list of directories with video files [Installation]
 
 #### Optional
 * **catalog_file** - path to json file where gomovies stores list of all known video files, default is *$HOME/.gomovies/catalog.json*
