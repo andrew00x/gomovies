@@ -111,7 +111,6 @@ func main() {
 	http.HandleFunc("/api/refresh", refresh)
 	http.HandleFunc("/api/update", updateMovie)
 	http.HandleFunc("/api/player/audios", audios)
-	http.HandleFunc("/api/player/mute", mute)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
 	http.HandleFunc("/api/player/nextsubtitles", nextSubtitles)
 	http.HandleFunc("/api/player/pause", pause)
@@ -127,7 +126,7 @@ func main() {
 	http.HandleFunc("/api/player/status", status)
 	http.HandleFunc("/api/player/stop", stop)
 	http.HandleFunc("/api/player/subtitles", subtitles)
-	http.HandleFunc("/api/player/unmute", unmute)
+	http.HandleFunc("/api/player/togglemute", toggleMute)
 	http.HandleFunc("/api/player/togglesubtitles", toggleSubtitles)
 	http.HandleFunc("/api/player/volume", volume)
 	http.HandleFunc("/api/player/volumedown", volumeDown)
@@ -215,11 +214,6 @@ func dequeue(w http.ResponseWriter, r *http.Request) {
 
 func queue(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(playerService.Queue(), nil, w)
-}
-
-func mute(w http.ResponseWriter, _ *http.Request) {
-	err := playerService.Mute()
-	writeJsonResponse(nil, err, w)
 }
 
 func nextAudioTrack(w http.ResponseWriter, _ *http.Request) {
@@ -358,13 +352,13 @@ func subtitles(w http.ResponseWriter, _ *http.Request) {
 }
 
 func toggleSubtitles(w http.ResponseWriter, _ *http.Request) {
-	err := playerService.ToggleSubtitles()
-	writeJsonResponse(nil, err, w)
+	st, err := playerService.ToggleSubtitles()
+	writeJsonResponse(st, err, w)
 }
 
-func unmute(w http.ResponseWriter, _ *http.Request) {
-	err := playerService.Unmute()
-	writeJsonResponse(nil, err, w)
+func toggleMute(w http.ResponseWriter, _ *http.Request) {
+	st, err := playerService.ToggleMute()
+	writeJsonResponse(st, err, w)
 }
 
 func updateMovie(w http.ResponseWriter, r *http.Request) {

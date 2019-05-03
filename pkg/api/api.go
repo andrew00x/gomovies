@@ -27,10 +27,12 @@ type MovieDetails struct {
 }
 
 type PlayerStatus struct {
-	Playing  string `json:"playing"`
-	Duration int    `json:"duration"`
-	Position int    `json:"position"`
-	Paused   bool   `json:"paused"`
+	Playing      string `json:"playing"`
+	Duration     int    `json:"duration"`
+	Position     int    `json:"position"`
+	Paused       bool   `json:"paused"`
+	Muted        bool   `json:"muted"`
+	SubtitlesOff bool   `json:"subtitlesOff"`
 }
 
 type TorrentDownload struct {

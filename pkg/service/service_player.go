@@ -117,10 +117,6 @@ func (srv *PlayerService) Queue() []string {
 	return srv.queue.All()
 }
 
-func (srv *PlayerService) Mute() error {
-	return srv.player.Mute()
-}
-
 func (srv *PlayerService) NextAudioTrack() (audios []omxcontrol.Stream, err error) {
 	err = srv.player.NextAudioTrack()
 	if err == nil {
@@ -230,8 +226,7 @@ func (srv *PlayerService) Status() (api.PlayerStatus, error) {
 }
 
 func (srv *PlayerService) Stop() (status api.PlayerStatus, err error) {
-	err = srv.player.Stop()
-	if err == nil {
+	if err = srv.player.Stop(); err == nil {
 		status, err = srv.player.Status()
 	}
 	return
@@ -241,12 +236,18 @@ func (srv *PlayerService) Subtitles() ([]omxcontrol.Stream, error) {
 	return srv.player.Subtitles()
 }
 
-func (srv *PlayerService) ToggleSubtitles() error {
-	return srv.player.ToggleSubtitles()
+func (srv *PlayerService) ToggleSubtitles() (status api.PlayerStatus, err error) {
+	if err = srv.player.ToggleSubtitles(); err == nil {
+		status, err = srv.player.Status()
+	}
+	return
 }
 
-func (srv *PlayerService) Unmute() error {
-	return srv.player.Unmute()
+func (srv *PlayerService) ToggleMute() (status api.PlayerStatus, err error) {
+	if err = srv.player.ToggleMute(); err == nil {
+		status, err = srv.player.Status()
+	}
+	return
 }
 
 func (srv *PlayerService) Volume() (float64, error) {

@@ -18,7 +18,6 @@ func Create(conf *config.Config) (Player, error) {
 
 type Player interface {
 	AudioTracks() ([]omxcontrol.Stream, error)
-	Mute() error
 	NextAudioTrack() error
 	NextSubtitles() error
 	Pause() error
@@ -35,8 +34,8 @@ type Player interface {
 	Status() (api.PlayerStatus, error)
 	Stop() error
 	Subtitles() ([]omxcontrol.Stream, error)
+	ToggleMute() error
 	ToggleSubtitles() error
-	Unmute() error
 	Volume() (float64, error)
 	VolumeDown() error
 	VolumeUp() error
