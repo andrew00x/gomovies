@@ -45,10 +45,10 @@ func (ctl *JsonCatalog) All() []api.Movie {
 	var err error
 	for _, p := range all {
 		m := *p
-		if exists, err = file.Exists(m.Path); err != nil {
+		if exists, err = file.Exists(m.File); err != nil {
 			log.WithFields(log.Fields{
 				"err":  err,
-				"file": m.Path,
+				"file": m.File,
 			}).Warn("Error occurred while trying access movie file")
 		}
 		m.Available = exists && err == nil
@@ -67,10 +67,10 @@ func (ctl *JsonCatalog) Find(title string) []api.Movie {
 	for _, id := range ids {
 		p := ctl.movies[id]
 		m := *p
-		if exists, err = file.Exists(m.Path); err != nil {
+		if exists, err = file.Exists(m.File); err != nil {
 			log.WithFields(log.Fields{
 				"err":  err,
-				"file": m.Path,
+				"file": m.File,
 			}).Warn("Error occurred while trying access movie file")
 		}
 		m.Available = exists && err == nil
@@ -145,7 +145,7 @@ func (ctl *JsonCatalog) Update(u api.Movie) (m api.Movie, err error) {
 		return
 	}
 	exists := false
-	if exists, err = file.Exists(p.Path); err != nil {
+	if exists, err = file.Exists(p.File); err != nil {
 		return
 	}
 	// nothing else at the moment for update
@@ -187,8 +187,8 @@ func updateCatalog(files map[int]*api.Movie, dirs []string, fileExt []string) (e
 	for id, f := range files {
 		fileDriveMounted := driveMounted(drives, f)
 		exists := false
-		if exists, err = file.Exists(f.Path); err == nil && (exists || !fileDriveMounted) {
-			known[f.Path] = true
+		if exists, err = file.Exists(f.File); err == nil && (exists || !fileDriveMounted) {
+			known[f.File] = true
 			if id > maxId {
 				maxId = id
 			}
@@ -211,7 +211,7 @@ func updateCatalog(files map[int]*api.Movie, dirs []string, fileExt []string) (e
 					if drive != nil {
 						driveName = drive.name
 					}
-					files[id] = &api.Movie{Id: id, Path: path, Title: title, DriveName: driveName}
+					files[id] = &api.Movie{Id: id, File: path, Title: title, DriveName: driveName}
 					log.WithFields(log.Fields{"file": path}).Debug("Add file to catalog")
 				}
 				return nil

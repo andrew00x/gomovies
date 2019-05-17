@@ -35,10 +35,14 @@ func (p *OMXPlayer) AddListener(l PlayListener) {
 	p.listeners = append(p.listeners, l)
 }
 
-func (p *OMXPlayer) AudioTracks() (audios []omxcontrol.Stream, err error) {
+func (p *OMXPlayer) AudioTracks() (audios []api.Stream, err error) {
 	var control *omxcontrol.OmxCtrl
 	if control, err = p.mustHaveControl(); err == nil {
-		audios, err = control.AudioTracks()
+		var controlAudios []omxcontrol.Stream
+		controlAudios, err = control.AudioTracks()
+		if err == nil {
+			audios = convertToApiStreams(controlAudios)
+		}
 	}
 	return
 }
@@ -47,7 +51,7 @@ func (p *OMXPlayer) NextAudioTrack() error {
 	return p.action(omxcontrol.ActionNextAudio)
 }
 
-func (p *OMXPlayer) NextSubtitles() error {
+func (p *OMXPlayer) NextSubtitle() error {
 	return p.action(omxcontrol.ActionNextSubtitle)
 }
 
@@ -112,7 +116,7 @@ func (p *OMXPlayer) PreviousAudioTrack() error {
 	return p.action(omxcontrol.ActionPreviousAudio)
 }
 
-func (p *OMXPlayer) PreviousSubtitles() error {
+func (p *OMXPlayer) PreviousSubtitle() error {
 	return p.action(omxcontrol.ActionPreviousSubtitle)
 }
 
@@ -136,7 +140,8 @@ func (p *OMXPlayer) SelectAudio(index int) (err error) {
 	var control *omxcontrol.OmxCtrl
 	if control, err = p.mustHaveControl(); err == nil {
 		var ok bool
-		if ok, err = control.SelectAudio(index); !ok {
+		if ok, err = control.SelectAudio(index); ok {
+		} else {
 			err = errors.New(fmt.Sprintf("audio track %d was not selected", index))
 		}
 	}
@@ -147,7 +152,8 @@ func (p *OMXPlayer) SelectSubtitle(index int) (err error) {
 	var control *omxcontrol.OmxCtrl
 	if control, err = p.mustHaveControl(); err == nil {
 		var ok bool
-		if ok, err = control.SelectSubtitle(index); !ok {
+		if ok, err = control.SelectSubtitle(index); ok {
+		} else {
 			err = errors.New(fmt.Sprintf("subtitle %d was not selected", index))
 		}
 	}
@@ -163,23 +169,46 @@ func (p *OMXPlayer) SetPosition(position time.Duration) (err error) {
 }
 
 func (p *OMXPlayer) Status() (status api.PlayerStatus, err error) {
+	status.Stopped = true
 	control := p.control
 	if control != nil {
 		if ready, e := control.CanControl(); ready && e == nil {
-			var playing string
+			var file string
 			var position, duration time.Duration
 			var pbs omxcontrol.Status
-			playing, err = control.Playing()
+			var audios []omxcontrol.Stream
+			var subs []omxcontrol.Stream
+			file, err = control.Playing()
+			if err != nil {
+				return
+			}
 			position, err = control.Position()
+			if err != nil {
+				return
+			}
 			duration, err = control.Duration()
+			if err != nil {
+				return
+			}
 			pbs, err = control.PlaybackStatus()
+			if err != nil {
+				return
+			}
+			audios, err = control.AudioTracks()
+			if err != nil {
+				return
+			}
+			subs, err = control.Subtitles()
 			if err == nil {
-				status.Playing = playing
+				status.File = file
 				status.Position = int(position / time.Second)
 				status.Duration = int(duration / time.Second)
 				status.Paused = pbs == omxcontrol.Paused
 				status.Muted = p.muted
 				status.SubtitlesOff = p.subtitlesOff
+				status.ActiveAudioTrack = findActive(audios)
+				status.ActiveSubtitle = findActive(subs)
+				status.Stopped = false
 			}
 		}
 	}
@@ -190,10 +219,14 @@ func (p *OMXPlayer) Stop() error {
 	return p.quit()
 }
 
-func (p *OMXPlayer) Subtitles() (subtitles []omxcontrol.Stream, err error) {
+func (p *OMXPlayer) Subtitles() (subtitles []api.Stream, err error) {
 	var control *omxcontrol.OmxCtrl
 	if control, err = p.mustHaveControl(); err == nil {
-		subtitles, err = control.Subtitles()
+		var controlSubtitles []omxcontrol.Stream
+		controlSubtitles, err = control.Subtitles()
+		if err == nil {
+			subtitles = convertToApiStreams(controlSubtitles)
+		}
 	}
 	return
 }
@@ -301,4 +334,21 @@ func (p *OMXPlayer) mustHaveControl() (control *omxcontrol.OmxCtrl, err error) {
 		err = controlNotSetup
 	}
 	return
+}
+
+func findActive(streams []omxcontrol.Stream) int {
+	for _, stream := range streams {
+		if stream.Active {
+			return stream.Index
+		}
+	}
+	return -1
+}
+
+func convertToApiStreams(streams []omxcontrol.Stream) []api.Stream {
+	var apiStreams []api.Stream
+	for _, stream := range streams {
+		apiStreams = append(apiStreams, api.Stream{Index: stream.Index, Name: stream.Name, Language: stream.Language, Codec: stream.Codec, Active: stream.Active})
+	}
+	return apiStreams
 }

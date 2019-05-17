@@ -9,7 +9,6 @@ import (
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/gomovies/pkg/player"
-	"github.com/andrew00x/omxcontrol"
 )
 
 type PlayerService struct {
@@ -92,16 +91,16 @@ func (q *PlayQueue) All() (all []string) {
 	return
 }
 
-func (srv *PlayerService) AudioTracks() ([]omxcontrol.Stream, error) {
+func (srv *PlayerService) AudioTracks() ([]api.Stream, error) {
 	return srv.player.AudioTracks()
 }
 
-func (srv *PlayerService) Enqueue(path string) (queue []string, err error) {
+func (srv *PlayerService) Enqueue(file string) (queue []string, err error) {
 	s, _ := srv.player.Status()
-	if s.Playing == "" {
-		err = srv.player.PlayMovie(path)
+	if s.File == "" {
+		err = srv.player.PlayMovie(file)
 	} else {
-		srv.queue.Enqueue(path)
+		srv.queue.Enqueue(file)
 		queue = srv.queue.All()
 	}
 	return
@@ -117,7 +116,7 @@ func (srv *PlayerService) Queue() []string {
 	return srv.queue.All()
 }
 
-func (srv *PlayerService) NextAudioTrack() (audios []omxcontrol.Stream, err error) {
+func (srv *PlayerService) NextAudioTrack() (audios []api.Stream, err error) {
 	err = srv.player.NextAudioTrack()
 	if err == nil {
 		audios, err = srv.player.AudioTracks()
@@ -125,8 +124,8 @@ func (srv *PlayerService) NextAudioTrack() (audios []omxcontrol.Stream, err erro
 	return
 }
 
-func (srv *PlayerService) NextSubtitles() (subtitles []omxcontrol.Stream, err error) {
-	err = srv.player.NextSubtitles()
+func (srv *PlayerService) NextSubtitle() (subtitles []api.Stream, err error) {
+	err = srv.player.NextSubtitle()
 	if err == nil {
 		subtitles, err = srv.player.Subtitles()
 	}
@@ -149,8 +148,29 @@ func (srv *PlayerService) Play() (status api.PlayerStatus, err error) {
 	return
 }
 
-func (srv *PlayerService) PlayMovie(path string) (status api.PlayerStatus, err error) {
-	err = srv.player.PlayMovie(path)
+func (srv *PlayerService) PlayMovie(playback api.Playback) (status api.PlayerStatus, err error) {
+	err = srv.player.PlayMovie(playback.File)
+	if err == nil {
+		var playbackErr error
+		if playback.Position > 0 {
+			playbackErr = srv.player.SetPosition(time.Duration(playback.Position) * time.Second)
+			if playbackErr != nil {
+				log.WithFields(log.Fields{"file": playback.File, "position": playback.Position, "err": playbackErr}).Error("Unable set playback position")
+			}
+		}
+		if playback.ActiveAudioTrack > 0 {
+			playbackErr = srv.player.SelectAudio(playback.ActiveAudioTrack)
+			if playbackErr != nil {
+				log.WithFields(log.Fields{"file": playback.File, "audio": playback.ActiveAudioTrack, "err": playbackErr}).Error("Unable select audio track")
+			}
+		}
+		if playback.ActiveSubtitle > 0 {
+			playbackErr = srv.player.SelectSubtitle(playback.ActiveSubtitle)
+			if playbackErr != nil {
+				log.WithFields(log.Fields{"file": playback.File, "audio": playback.ActiveSubtitle, "err": playbackErr}).Error("Unable select subtitle")
+			}
+		}
+	}
 	if err == nil {
 		status, err = srv.player.Status()
 	}
@@ -165,7 +185,7 @@ func (srv *PlayerService) PlayPause() (status api.PlayerStatus, err error) {
 	return
 }
 
-func (srv *PlayerService) PreviousAudioTrack() (audios []omxcontrol.Stream, err error) {
+func (srv *PlayerService) PreviousAudioTrack() (audios []api.Stream, err error) {
 	err = srv.player.PreviousAudioTrack()
 	if err == nil {
 		audios, err = srv.player.AudioTracks()
@@ -173,8 +193,8 @@ func (srv *PlayerService) PreviousAudioTrack() (audios []omxcontrol.Stream, err 
 	return
 }
 
-func (srv *PlayerService) PreviousSubtitles() (subtitles []omxcontrol.Stream, err error) {
-	err = srv.player.PreviousSubtitles()
+func (srv *PlayerService) PreviousSubtitle() (subtitles []api.Stream, err error) {
+	err = srv.player.PreviousSubtitle()
 	if err == nil {
 		subtitles, err = srv.player.Subtitles()
 	}
@@ -197,7 +217,7 @@ func (srv *PlayerService) Seek(offset int) (status api.PlayerStatus, err error) 
 	return
 }
 
-func (srv *PlayerService) SelectAudio(index int) (audios []omxcontrol.Stream, err error) {
+func (srv *PlayerService) SelectAudio(index int) (audios []api.Stream, err error) {
 	err = srv.player.SelectAudio(index)
 	if err == nil {
 		audios, err = srv.player.AudioTracks()
@@ -205,7 +225,7 @@ func (srv *PlayerService) SelectAudio(index int) (audios []omxcontrol.Stream, er
 	return
 }
 
-func (srv *PlayerService) SelectSubtitle(index int) (subtitles []omxcontrol.Stream, err error) {
+func (srv *PlayerService) SelectSubtitle(index int) (subtitles []api.Stream, err error) {
 	err = srv.player.SelectSubtitle(index)
 	if err == nil {
 		subtitles, err = srv.player.Subtitles()
@@ -226,13 +246,19 @@ func (srv *PlayerService) Status() (api.PlayerStatus, error) {
 }
 
 func (srv *PlayerService) Stop() (status api.PlayerStatus, err error) {
+	var statusErr error
+	status, statusErr = srv.player.Status()
 	if err = srv.player.Stop(); err == nil {
-		status, err = srv.player.Status()
+		if statusErr == nil {
+			status.Stopped = true
+		} else {
+			status, err = srv.player.Status()
+		}
 	}
 	return
 }
 
-func (srv *PlayerService) Subtitles() ([]omxcontrol.Stream, error) {
+func (srv *PlayerService) Subtitles() ([]api.Stream, error) {
 	return srv.player.Subtitles()
 }
 

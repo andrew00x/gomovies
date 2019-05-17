@@ -33,7 +33,7 @@ func TestLoadCatalog(t *testing.T) {
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1})
+		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
 		id++
 	}
 
@@ -73,7 +73,7 @@ func TestCreateNewCatalog(t *testing.T) {
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1})
+		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
 		id++
 	}
 
@@ -111,7 +111,7 @@ func TestCreateAndUpdateCatalog(t *testing.T) {
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1})
+		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
 		id++
 	}
 
@@ -120,7 +120,7 @@ func TestCreateAndUpdateCatalog(t *testing.T) {
 	newFile := filepath.Join(moviesDir, "lethal weapon", "lethal weapon 4.mkv")
 	mustCreateFile(newFile)
 	files = append(files, newFile)
-	movies = append(movies, api.Movie{Id: id, Path: newFile, Title: filepath.Base(newFile), DriveName: sda1})
+	movies = append(movies, api.Movie{Id: id, File: newFile, Title: filepath.Base(newFile), DriveName: sda1})
 
 	index := indexMock{[]api.Movie{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
@@ -153,7 +153,7 @@ func TestSaveCatalog(t *testing.T) {
 	movies := make(map[int]*api.Movie)
 	id := 1
 	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, Title: filepath.Base(f), Path: f, DriveName: sda1}
+		movies[id] = &api.Movie{Id: id, Title: filepath.Base(f), File: f, DriveName: sda1}
 		id++
 	}
 	catalog := &JsonCatalog{movies: movies}
@@ -183,7 +183,7 @@ func TestGetById(t *testing.T) {
 	var id = 1
 	movies := make(map[int]*api.Movie)
 	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1}
+		movies[id] = &api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1}
 		id++
 	}
 	catalog := &JsonCatalog{movies: movies}
@@ -214,7 +214,7 @@ func TestFindByNameInCatalog(t *testing.T) {
 	var id = 1
 	movies := make(map[int]*api.Movie)
 	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1}
+		movies[id] = &api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1}
 		id++
 	}
 
@@ -238,7 +238,7 @@ func TestRemoveNonexistentFilesFromCatalog(t *testing.T) {
 	var id = 1
 	movies := make([]api.Movie, 0, len(files))
 	for _, f := range files {
-		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1})
+		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
 		id++
 	}
 	mustSaveCatalogFile(movies)
@@ -275,13 +275,13 @@ func TestKeepNonexistentFilesWhenCorrespondedDriveIsUnmounted(t *testing.T) {
 	movies := make([]api.Movie, 0, len(files))
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1})
+		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
 		id++
 	}
 	defer func() { mustRemoveFiles(files...) }()
 	nonexistent := filepath.Join(moviesDir2, "rush hour 3.mkv")
 	files = append(files, nonexistent)
-	movies = append(movies, api.Movie{Id: id, Path: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"})
+	movies = append(movies, api.Movie{Id: id, File: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"})
 	mustSaveCatalogFile(movies)
 
 	index := indexMock{[]api.Movie{}, []int{}}
@@ -293,7 +293,7 @@ func TestKeepNonexistentFilesWhenCorrespondedDriveIsUnmounted(t *testing.T) {
 
 	expected := make([]api.Movie, 0, len(movies))
 	for _, m := range movies {
-		m.Available = m.Path != nonexistent
+		m.Available = m.File != nonexistent
 		expected = append(expected, m)
 	}
 	result := catalog.All()
@@ -316,7 +316,7 @@ func TestRefreshCatalog(t *testing.T) {
 	id := 1
 	for _, f := range files {
 		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1})
+		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
 		id++
 	}
 	mustSaveCatalogFile(movies)
@@ -343,7 +343,7 @@ func TestRefreshCatalog(t *testing.T) {
 	files[2] = newFile
 	mustCreateFile(newFile)
 	movies = movies[0:2]
-	movies = append(movies, api.Movie{Id: 3, Path: newFile, Title: filepath.Base(newFile), DriveName: sda1})
+	movies = append(movies, api.Movie{Id: 3, File: newFile, Title: filepath.Base(newFile), DriveName: sda1})
 	index = indexMock{[]api.Movie{}, []int{}}
 
 	err = catalog.Refresh()
@@ -372,7 +372,7 @@ func TestUpdateCatalog(t *testing.T) {
 	var id = 1
 	movies := make(map[int]*api.Movie)
 	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, Path: f, Title: filepath.Base(f), DriveName: sda1}
+		movies[id] = &api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1}
 		id++
 	}
 

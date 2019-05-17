@@ -19,7 +19,6 @@ import (
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
 	"github.com/andrew00x/gomovies/pkg/service"
-	"github.com/andrew00x/omxcontrol"
 )
 
 var conf *config.Config
@@ -55,30 +54,32 @@ func main() {
 		log.WithFields(log.Fields{"err": err}).Fatal("Could not create player")
 	}
 
+
+	if conf.TorrentRemoteCtrlAddr != "" {
+		torrentService = service.CreateTorrentService(conf)
+	}
+
 	if conf.TMDbApiKey != "" {
 		tmDbService, err = service.CreateTMDbService(conf)
 		if err != nil {
 			log.WithFields(log.Fields{"err": err}).Fatal("Could not create The Movie DB service")
 		}
 	}
-
-	if conf.TorrentRemoteCtrlAddr != "" {
-		torrentService = service.CreateTorrentService(conf)
-	}
-
-	log.Info("Start loading details from 'The Movie DB'")
-	startTMDbLoad := time.Now()
-	for _, m := range catalogService.All() {
-		if m.TMDbId > 0 {
-			if _, err = tmDbService.MovieDetails(m.TMDbId); err != nil {
-				log.WithFields(log.Fields{"err": err}).Warn("Error occurred while retrieving data from 'The Movie DB'")
+	if tmDbService != nil {
+		log.Info("Start loading details from 'The Movie DB'")
+		startTMDbLoad := time.Now()
+		for _, m := range catalogService.All() {
+			if m.TMDbId > 0 {
+				if _, err = tmDbService.MovieDetails(m.TMDbId); err != nil {
+					log.WithFields(log.Fields{"err": err}).Warn("Error occurred while retrieving data from 'The Movie DB'")
+				}
 			}
 		}
+		stopTMDbLoad := time.Now()
+		log.WithFields(log.Fields{
+			"spent_time": stopTMDbLoad.Sub(startTMDbLoad) / time.Second,
+		}).Info("Stop loading details from 'The Movie DB'", )
 	}
-	stopTMDbLoad := time.Now()
-	log.WithFields(log.Fields{
-		"spent_time": stopTMDbLoad.Sub(startTMDbLoad) / time.Second,
-	}).Info("Stop loading details from 'The Movie DB'", )
 
 	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 
@@ -112,12 +113,12 @@ func main() {
 	http.HandleFunc("/api/update", updateMovie)
 	http.HandleFunc("/api/player/audios", audios)
 	http.HandleFunc("/api/player/nextaudiotrack", nextAudioTrack)
-	http.HandleFunc("/api/player/nextsubtitles", nextSubtitles)
+	http.HandleFunc("/api/player/nextsubtitle", nextSubtitle)
 	http.HandleFunc("/api/player/pause", pause)
 	http.HandleFunc("/api/player/play", play)
 	http.HandleFunc("/api/player/playpause", playPause)
 	http.HandleFunc("/api/player/previousaudiotrack", previousAudioTrack)
-	http.HandleFunc("/api/player/previoussubtitles", previousSubtitles)
+	http.HandleFunc("/api/player/previoussubtitle", previousSubtitle)
 	http.HandleFunc("/api/player/replay", replayCurrent)
 	http.HandleFunc("/api/player/seek", seek)
 	http.HandleFunc("/api/player/audio", selectAudio)
@@ -191,18 +192,18 @@ func details(w http.ResponseWriter, r *http.Request) {
 }
 
 func enqueue(w http.ResponseWriter, r *http.Request) {
-	var entity movie
+	var entity api.MoviePath
 	var queue []string
 	var err error
 	parser := json.NewDecoder(r.Body)
 	if err = parser.Decode(&entity); err == nil {
-		queue, err = playerService.Enqueue(entity.MoviePath)
+		queue, err = playerService.Enqueue(entity.File)
 	}
 	writeJsonResponse(queue, err, w)
 }
 
 func dequeue(w http.ResponseWriter, r *http.Request) {
-	var entity position
+	var entity api.Position
 	var queue []string
 	var err error
 	parser := json.NewDecoder(r.Body)
@@ -221,18 +222,18 @@ func nextAudioTrack(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(audios, err, w)
 }
 
-func nextSubtitles(w http.ResponseWriter, _ *http.Request) {
-	subtitles, err := playerService.NextSubtitles()
+func nextSubtitle(w http.ResponseWriter, _ *http.Request) {
+	subtitles, err := playerService.NextSubtitle()
 	writeJsonResponse(subtitles, err, w)
 }
 
 func playMovie(w http.ResponseWriter, r *http.Request) {
-	var entity movie
+	var entity api.Playback
 	var status api.PlayerStatus
 	var err error
 	parser := json.NewDecoder(r.Body)
 	if err = parser.Decode(&entity); err == nil {
-		status, err = playerService.PlayMovie(entity.MoviePath)
+		status, err = playerService.PlayMovie(entity)
 	}
 	writeJsonResponse(status, err, w)
 }
@@ -257,8 +258,8 @@ func previousAudioTrack(w http.ResponseWriter, _ *http.Request) {
 	writeJsonResponse(audios, err, w)
 }
 
-func previousSubtitles(w http.ResponseWriter, _ *http.Request) {
-	subtitles, err := playerService.PreviousSubtitles()
+func previousSubtitle(w http.ResponseWriter, _ *http.Request) {
+	subtitles, err := playerService.PreviousSubtitle()
 	writeJsonResponse(subtitles, err, w)
 }
 
@@ -293,7 +294,7 @@ func searchMovies(w http.ResponseWriter, r *http.Request) {
 }
 
 func seek(w http.ResponseWriter, r *http.Request) {
-	var entity position
+	var entity api.Position
 	parser := json.NewDecoder(r.Body)
 	var status api.PlayerStatus
 	var err error
@@ -304,9 +305,9 @@ func seek(w http.ResponseWriter, r *http.Request) {
 }
 
 func selectAudio(w http.ResponseWriter, r *http.Request) {
-	var entity trackIndex
+	var entity api.TrackIndex
 	parser := json.NewDecoder(r.Body)
-	var audios []omxcontrol.Stream
+	var audios []api.Stream
 	var err error
 	if err = parser.Decode(&entity); err == nil {
 		audios, err = playerService.SelectAudio(entity.Index)
@@ -315,9 +316,9 @@ func selectAudio(w http.ResponseWriter, r *http.Request) {
 }
 
 func selectSubtitle(w http.ResponseWriter, r *http.Request) {
-	var entity trackIndex
+	var entity api.TrackIndex
 	parser := json.NewDecoder(r.Body)
-	var subtitles []omxcontrol.Stream
+	var subtitles []api.Stream
 	var err error
 	if err = parser.Decode(&entity); err == nil {
 		subtitles, err = playerService.SelectSubtitle(entity.Index)
@@ -326,7 +327,7 @@ func selectSubtitle(w http.ResponseWriter, r *http.Request) {
 }
 
 func setPosition(w http.ResponseWriter, r *http.Request) {
-	var entity position
+	var entity api.Position
 	parser := json.NewDecoder(r.Body)
 	var status api.PlayerStatus
 	var err error
@@ -373,21 +374,21 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 
 func volume(w http.ResponseWriter, _ *http.Request) {
 	v, err := playerService.Volume()
-	writeJsonResponse(vol{v}, err, w)
+	writeJsonResponse(api.Volume{Volume: v}, err, w)
 }
 
 func volumeDown(w http.ResponseWriter, _ *http.Request) {
 	v, err := playerService.VolumeDown()
-	writeJsonResponse(vol{v}, err, w)
+	writeJsonResponse(api.Volume{Volume: v}, err, w)
 }
 
 func volumeUp(w http.ResponseWriter, _ *http.Request) {
 	v, err := playerService.VolumeUp()
-	writeJsonResponse(vol{v}, err, w)
+	writeJsonResponse(api.Volume{Volume: v}, err, w)
 }
 
 func torrentAddFile(w http.ResponseWriter, r *http.Request) {
-	var torrent torrentFile
+	var torrent api.TorrentFile
 	var err error
 	parser := json.NewDecoder(r.Body)
 	if err = parser.Decode(&torrent); err == nil {
@@ -464,24 +465,4 @@ func writeJsonResponse(body interface{}, err error, w http.ResponseWriter) {
 			log.WithFields(log.Fields{"err": err}).Error("Error occurred while write response")
 		}
 	}
-}
-
-type movie struct {
-	MoviePath string `json:"movie"`
-}
-
-type trackIndex struct {
-	Index int `json:"index"`
-}
-
-type position struct {
-	Position int `json:"position"`
-}
-
-type vol struct {
-	Volume float64 `json:"volume"`
-}
-
-type torrentFile struct {
-	Content string `json:"file"`
 }

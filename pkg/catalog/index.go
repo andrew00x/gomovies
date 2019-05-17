@@ -34,7 +34,7 @@ type SimpleIndex struct {
 
 func (i *SimpleIndex) Add(m api.Movie) {
 	i.idx[strings.ToLower(m.Title)] = m.Id
-	log.WithFields(log.Fields{"file": m.Path}).Debug("Add file to index")
+	log.WithFields(log.Fields{"file": m.File}).Debug("Add file to index")
 }
 
 func (i *SimpleIndex) Find(title string) []int {
