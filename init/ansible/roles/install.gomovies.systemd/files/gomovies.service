@@ -9,7 +9,8 @@ WorkingDirectory=/home/pi
 ExecStart=/home/pi/bin/gomovies.sh
 StandardOutput=inherit
 StandardError=inherit
-Restart=on-failure
+Restart=always
+RestartSec=5
 PIDFile=/tmp/gomovies.pid
 
 [Install]

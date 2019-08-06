@@ -77,7 +77,7 @@ func main() {
 		}
 		stopTMDbLoad := time.Now()
 		log.WithFields(log.Fields{
-			"spent_time": stopTMDbLoad.Sub(startTMDbLoad) / time.Second,
+			"spent_time": stopTMDbLoad.Sub(startTMDbLoad).Truncate(time.Second),
 		}).Info("Stop loading details from 'The Movie DB'", )
 	}
 

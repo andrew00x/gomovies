@@ -124,6 +124,11 @@ install-rpi3-torrent-systemd: ## Install systemd service to manage torrent clien
 		--tags "systemd" \
 		$(ANSIBLE_DIR)/install.torrent.yaml
 
+install-torrent-scripts: ## Install bash scripts to manage torrents
+	@ansible-playbook \
+		-i $(ANSIBLE_DIR)/raspberry.ini \
+		$(ANSIBLE_DIR)/install.torrent_scripts.yaml
+
 install-rpi3-torrent-all:    ## Install all torrent client related parts in one on Raspberry
 	@ansible-playbook \
 		-i $(ANSIBLE_DIR)/raspberry.ini \
