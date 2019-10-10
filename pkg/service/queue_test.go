@@ -8,8 +8,7 @@ import (
 
 func TestEnqueue(t *testing.T) {
 	q := PlayQueue{}
-	q.Enqueue("/a.avi")
-	q.Enqueue("/b.avi")
+	q.Enqueue([]string{"/a.avi", "/b.avi"})
 	assert.Equal(t, []string{"/a.avi", "/b.avi"}, q.arr)
 }
 

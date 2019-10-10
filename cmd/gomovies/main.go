@@ -192,14 +192,14 @@ func details(w http.ResponseWriter, r *http.Request) {
 }
 
 func enqueue(w http.ResponseWriter, r *http.Request) {
-	var entity api.MoviePath
+	var entity []api.MoviePath
 	var queue []string
 	var err error
 	parser := json.NewDecoder(r.Body)
 	if err = parser.Decode(&entity); err == nil {
-		queue, err = playerService.Enqueue(entity.File)
+		queue, err = playerService.Enqueue(unwrapFiles(entity))
 	}
-	writeJsonResponse(queue, err, w)
+	writeJsonResponse(wrapFiles(queue), err, w)
 }
 
 func dequeue(w http.ResponseWriter, r *http.Request) {
@@ -210,11 +210,27 @@ func dequeue(w http.ResponseWriter, r *http.Request) {
 	if err = parser.Decode(&entity); err == nil {
 		queue = playerService.Dequeue(entity.Position)
 	}
-	writeJsonResponse(queue, err, w)
+	writeJsonResponse(wrapFiles(queue), err, w)
 }
 
 func queue(w http.ResponseWriter, _ *http.Request) {
-	writeJsonResponse(playerService.Queue(), nil, w)
+	writeJsonResponse(wrapFiles(playerService.Queue()), nil, w)
+}
+
+func wrapFiles(files []string) (paths []api.MoviePath) {
+	paths = make([]api.MoviePath, len(files))
+	for i, f := range files {
+		paths[i] = api.MoviePath{File: f}
+	}
+	return
+}
+
+func unwrapFiles(paths []api.MoviePath) (files []string) {
+	files = make([]string, len(paths))
+	for i, p := range paths {
+		files[i] = p.File
+	}
+	return
 }
 
 func nextAudioTrack(w http.ResponseWriter, _ *http.Request) {

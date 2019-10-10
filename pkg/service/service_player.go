@@ -54,9 +54,9 @@ type PlayQueue struct {
 	arr  []string
 }
 
-func (q *PlayQueue) Enqueue(path string) {
+func (q *PlayQueue) Enqueue(path []string) {
 	q.lock.Lock()
-	q.arr = append(q.arr, path)
+	q.arr = append(q.arr, path...)
 	q.lock.Unlock()
 }
 
@@ -95,14 +95,17 @@ func (srv *PlayerService) AudioTracks() ([]api.Stream, error) {
 	return srv.player.AudioTracks()
 }
 
-func (srv *PlayerService) Enqueue(file string) (queue []string, err error) {
-	s, _ := srv.player.Status()
-	if s.File == "" {
-		err = srv.player.PlayMovie(file)
-	} else {
-		srv.queue.Enqueue(file)
-		queue = srv.queue.All()
+func (srv *PlayerService) Enqueue(files []string) (queue []string, err error) {
+	if len(files) > 0 {
+		s, _ := srv.player.Status()
+		if s.File == "" {
+			err = srv.player.PlayMovie(files[0])
+			srv.queue.Enqueue(files[1:])
+		} else {
+			srv.queue.Enqueue(files)
+		}
 	}
+	queue = srv.queue.All()
 	return
 }
 

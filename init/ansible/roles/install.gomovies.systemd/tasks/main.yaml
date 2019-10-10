@@ -1,9 +1,3 @@
-- name: Copy bash script
-  copy:
-    src: "{{ app.service.name }}.sh"
-    dest: /home/pi/bin/
-    mode: 0755
-
 - name: Copy systemd service file
   copy:
     src: "{{ app.service.name }}.service"

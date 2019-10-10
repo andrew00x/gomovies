@@ -73,7 +73,7 @@ func (p *OMXPlayer) Play() (err error) {
 
 func (p *OMXPlayer) PlayMovie(path string) (err error) {
 	if stpErr := p.Stop(); stpErr != nil {
-		log.WithFields(log.Fields{"err": err}).Error("Error occurred while stopping player")
+		log.WithFields(log.Fields{"err": stpErr}).Error("Error occurred while stopping player")
 	}
 	err = p.start(path)
 	if err == nil {
@@ -298,8 +298,8 @@ func (p *OMXPlayer) quit() (err error) {
 }
 
 func setupControl() (control *omxcontrol.OmxCtrl, err error) {
-	attempts := 20
-	retryDelay := time.Duration(500) * time.Millisecond
+	attempts := 10
+	retryDelay := time.Duration(2) * time.Second
 	var ready bool
 	for i := 1; ; i++ {
 		time.Sleep(retryDelay)

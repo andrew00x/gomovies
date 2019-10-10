@@ -3,15 +3,14 @@ Description=Web interface for omxplayer
 After=multi-user.target
 
 [Service]
-Type=forking
+Type=simple
 User=pi
 WorkingDirectory=/home/pi
-ExecStart=/home/pi/bin/gomovies.sh
+ExecStart=/home/pi/bin/gomovies
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
 RestartSec=5
-PIDFile=/tmp/gomovies.pid
 
 [Install]
 WantedBy=multi-user.target
