@@ -1,14 +1,7 @@
-GO_VERSION=1.10.2
+GO_VERSION=1.12.5
 ARCH=$(shell go env GOARCH)
 
 PKG=github.com/andrew00x/gomovies
-DEPS=github.com/godbus/dbus \
-	github.com/go-xmlfmt/xmlfmt \
-	github.com/mpl/scgiclient \
-	github.com/sirupsen/logrus \
-	github.com/stretchr/testify \
-	github.com/andrew00x/omxcontrol \
-	github.com/andrew00x/xmlrpc/pkg/xmlrpc
 
 CMD_DIR=cmd
 SRC_DIRS=$(CMD_DIR) pkg
@@ -22,16 +15,13 @@ ANSIBLE_DIR=init/ansible
 build-rpi3: ARCH=arm
 install-rpi3-%: ARCH=arm
 
-deps:                 ## Get all gomovies dependencies
-	@go get $(DEPS)
-
-test: clean deps      ## Run tests
+test: clean           ## Run tests
 	@go test -v $(addprefix ./, $(addsuffix /..., $(SRC_DIRS)))
 
-build: clean deps     ## Build gomovies locally
+build: clean          ## Build gomovies locally
 	@go build -v -installsuffix "static" -o $(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))
 
-install: test deps    ## Install gomovies locally
+install: test         ## Install gomovies locally
 	@go install -v -installsuffix "static" $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))
 
 build-rpi3: clean     ## Build gomovies for Raspberry PI 3 architecture
@@ -41,13 +31,13 @@ build-rpi3: clean     ## Build gomovies for Raspberry PI 3 architecture
 		-e GOOS=linux \
 		-e GOARCH=$(ARCH) \
 		-e GOARM=7 \
+		-e GO111MODULE=on \
 		-v "$$(pwd):/go/src/$(PKG)" \
 		-w "/go/src/$(PKG)" \
 		golang:$(GO_VERSION) \
-		/bin/bash -c "go get $(DEPS) && go build -v -installsuffix "static" -o $(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))"
+		/bin/bash -c "go build -v -installsuffix "static" -o $(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) $(addprefix ./, $(addsuffix /..., $(CMD_DIR)))"
 
 clean:                ## Remove build results
-	@go clean
 	@rm -rf $(OUTPUT_DIR)
 
 ##

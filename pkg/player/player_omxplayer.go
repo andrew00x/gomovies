@@ -142,7 +142,7 @@ func (p *OMXPlayer) SelectAudio(index int) (err error) {
 		var ok bool
 		if ok, err = control.SelectAudio(index); ok {
 		} else {
-			err = errors.New(fmt.Sprintf("audio track %d was not selected", index))
+			err = fmt.Errorf("audio track %d was not selected", index)
 		}
 	}
 	return
@@ -154,7 +154,7 @@ func (p *OMXPlayer) SelectSubtitle(index int) (err error) {
 		var ok bool
 		if ok, err = control.SelectSubtitle(index); ok {
 		} else {
-			err = errors.New(fmt.Sprintf("subtitle %d was not selected", index))
+			err = fmt.Errorf("subtitle %d was not selected", index)
 		}
 	}
 	return
@@ -313,7 +313,7 @@ func setupControl() (control *omxcontrol.OmxCtrl, err error) {
 			break
 		}
 	}
-	err = errors.New(fmt.Sprintf("unable setup omxplayer control after %d attempts, last error: %v", attempts, err))
+	err = fmt.Errorf("unable setup omxplayer control after %d attempts, last error: %v", attempts, err)
 	return
 }
 

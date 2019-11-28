@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -141,7 +140,7 @@ func (ctl *JsonCatalog) Update(u api.Movie) (m api.Movie, err error) {
 	defer ctl.mu.Unlock()
 	p := ctl.movies[u.Id]
 	if p == nil {
-		err = errors.New(fmt.Sprintf("unknown movie, id: %d, title: %s", u.Id, u.Title))
+		err = fmt.Errorf("unknown movie, id: %d, title: %s", u.Id, u.Title)
 		return
 	}
 	exists := false

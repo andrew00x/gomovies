@@ -2,7 +2,6 @@ package tmdb
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -157,6 +156,8 @@ func (tmdb *TmDb) GetMovie(id int) (MovieDetails, error) {
 	_, err := tmdb.request(reqUrl, &mov)
 	if err != nil {
 		log.WithFields(log.Fields{"movie_id": id, "err": err}).Error("Error occurred while retrieving movie details from TMDb")
+	} else {
+		log.WithFields(log.Fields{"movie_id": id, "title": mov.Title}).Info("Found details in TMDb")
 	}
 	return mov, err
 }
@@ -202,5 +203,5 @@ func (tmdb *TmDb) request(reqUrl string, payload interface{}) (interface{}, erro
 		return nil, err
 	}
 
-	return nil, errors.New(fmt.Sprintf("error: %s, code: %d", errorStatus.Message, errorStatus.Code))
+	return nil, fmt.Errorf("error: %s, code: %d", errorStatus.Message, errorStatus.Code)
 }

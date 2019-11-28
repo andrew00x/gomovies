@@ -15,15 +15,15 @@ type MovieDetails struct {
 	Companies      []string `json:"companies,omitempty"`
 	Countries      []string `json:"countries,omitempty"`
 	Genres         []string `json:"genres,omitempty"`
-	OriginalTitle  string   `json:"original_title"`
-	Overview       string   `json:"overview"`
-	PosterSmallUrl string   `json:"poster_small_url"`
-	PosterLargeUrl string   `json:"poster_large_url"`
-	ReleaseDate    string   `json:"release_date"`
+	OriginalTitle  string   `json:"originalTitle"`
+	Overview       string   `json:"overview,omitempty"`
+	PosterSmallUrl string   `json:"posterSmallUrl"`
+	PosterLargeUrl string   `json:"posterLargeUrl"`
+	ReleaseDate    string   `json:"releaseDate"`
 	Revenue        int64    `json:"revenue,omitempty"`
 	TagLine        string   `json:"tagline,omitempty"`
-	TMDbId         int      `json:"tmdb_id"`
-	ImdbId         string   `json:"imdb_id,omitempty"`
+	TMDbId         int      `json:"tmdbId"`
+	ImdbId         string   `json:"imdbId,omitempty"`
 }
 
 type Playback struct {
@@ -57,7 +57,7 @@ type TorrentDownload struct {
 	Name          string            `json:"name"`
 	Path          string            `json:"path"`
 	Size          int64             `json:"size"`
-	CompletedSize int64             `json:"completed_size"`
+	CompletedSize int64             `json:"completedSize"`
 	Completed     bool              `json:"completed"`
 	Ratio         float32           `json:"ratio"`
 	Attrs         map[string]string `json:"attrs,omitempty"`

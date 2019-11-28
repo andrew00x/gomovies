@@ -91,6 +91,21 @@ func (q *PlayQueue) All() (all []string) {
 	return
 }
 
+func (q *PlayQueue) Clear() {
+	q.lock.Lock()
+	q.arr = []string{}
+	q.lock.Unlock()
+}
+
+func (q *PlayQueue) Shift(i int) {
+	q.lock.Lock()
+	if i < len(q.arr) {
+		q.arr = append([]string{}, q.arr[i:]...)
+	}
+	q.lock.Unlock()
+	return
+}
+
 func (srv *PlayerService) AudioTracks() ([]api.Stream, error) {
 	return srv.player.AudioTracks()
 }
@@ -117,6 +132,17 @@ func (srv *PlayerService) Dequeue(i int) (queue []string) {
 
 func (srv *PlayerService) Queue() []string {
 	return srv.queue.All()
+}
+
+func (srv *PlayerService) ClearQueue() {
+	srv.queue.Clear()
+}
+
+func (srv *PlayerService) ShiftQueue(i int) (queue []string) {
+	srv.queue.Shift(i)
+	queue = srv.queue.All()
+	srv.player.Stop()
+	return
 }
 
 func (srv *PlayerService) NextAudioTrack() (audios []api.Stream, err error) {
@@ -249,6 +275,7 @@ func (srv *PlayerService) Status() (api.PlayerStatus, error) {
 }
 
 func (srv *PlayerService) Stop() (status api.PlayerStatus, err error) {
+	srv.ClearQueue()
 	var statusErr error
 	status, statusErr = srv.player.Status()
 	if err = srv.player.Stop(); err == nil {

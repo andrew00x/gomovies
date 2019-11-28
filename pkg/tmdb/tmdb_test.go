@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -39,7 +38,7 @@ func TestGetConfiguration(t *testing.T) {
 			resp := http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader(configurationResponseBody))}
 			return &resp, nil
 		}
-		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
+		return nil, fmt.Errorf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl)
 	}
 	tmdb := GetTmDbInstance(fakeApiKey)
 	result, err := tmdb.GetConfiguration()
@@ -66,7 +65,7 @@ func TestSearchMovie(t *testing.T) {
 			resp := http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader(searchMoviesResponseBody))}
 			return &resp, nil
 		}
-		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
+		return nil, fmt.Errorf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl)
 	}
 	tmdb := GetTmDbInstance(fakeApiKey)
 	result, err := tmdb.SearchMovies("brave heart")
@@ -93,7 +92,7 @@ func TestGetMovie(t *testing.T) {
 			resp := http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader(movieDetailsResponse))}
 			return &resp, nil
 		}
-		return nil, errors.New(fmt.Sprintf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl))
+		return nil, fmt.Errorf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl)
 	}
 	tmdb := GetTmDbInstance(fakeApiKey)
 	result, err := tmdb.GetMovie(123)

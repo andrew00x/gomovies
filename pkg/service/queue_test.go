@@ -50,3 +50,15 @@ func TestAllWhenEmpty(t *testing.T) {
 	q := PlayQueue{}
 	assert.Equal(t, []string{}, q.All())
 }
+
+func TestClear(t *testing.T) {
+	q := PlayQueue{arr: []string{"/a.avi", "/b.avi"}}
+	q.Clear()
+	assert.Equal(t, 0, len(q.arr))
+}
+
+func TestShift(t *testing.T) {
+	q := PlayQueue{arr: []string{"/a.mkv", "/b.mkv", "/c.mkv", "/d.mkv"}}
+	q.Shift(2)
+	assert.Equal(t, []string{"/c.mkv", "/d.mkv"}, q.arr)
+}

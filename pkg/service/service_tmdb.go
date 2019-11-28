@@ -25,24 +25,32 @@ func CreateTMDbService(conf *config.Config) (*TMDbService, error) {
 	return &srv, err
 }
 
-func (srv *TMDbService) MovieDetails(tmDbId int) (md api.MovieDetails, err error) {
-	res, err := srv.detailsCache.GetOrLoad(tmDbId, func(k util.Key) (interface{}, error) {
-		return tmdb.GetTmDbInstance(srv.conf.TMDbApiKey).GetMovie(k.(int))
-	})
-	tmDbMovie := res.(tmdb.MovieDetails)
-	if err == nil {
-		md.Budget = tmDbMovie.Budget
-		md.Companies = companyNames(tmDbMovie.ProductionCompanies)
-		md.Countries = countryNames(tmDbMovie.ProductionCountries)
-		md.Genres = genreNames(tmDbMovie.Genres)
-		md.OriginalTitle = tmDbMovie.OriginalTitle
-		md.Overview = tmDbMovie.Overview
-		md.PosterSmallUrl = fmt.Sprintf("%s%s%s", srv.tmDbConf.Images.BaseUrl, srv.conf.TMDbPosterSmall, tmDbMovie.PosterPath)
-		md.PosterLargeUrl = fmt.Sprintf("%s%s%s", srv.tmDbConf.Images.BaseUrl, srv.conf.TMDbPosterLarge, tmDbMovie.PosterPath)
-		md.ReleaseDate = tmDbMovie.ReleaseDate
-		md.Revenue = tmDbMovie.Revenue
-		md.TagLine = tmDbMovie.TagLine
-		md.TMDbId = tmDbMovie.Id
+func (srv *TMDbService) MovieDetails(tmDbId int, load bool) (md *api.MovieDetails, err error) {
+	var res interface{}
+	if load {
+		res, err = srv.detailsCache.GetOrLoad(tmDbId, func(k util.Key) (interface{}, error) {
+			return tmdb.GetTmDbInstance(srv.conf.TMDbApiKey).GetMovie(k.(int))
+		})
+	} else {
+		res, err = srv.detailsCache.Get(tmDbId)
+	}
+	if res != nil {
+		tmDbMovie := res.(tmdb.MovieDetails)
+		if err == nil {
+			md = &api.MovieDetails{}
+			md.Budget = tmDbMovie.Budget
+			md.Companies = companyNames(tmDbMovie.ProductionCompanies)
+			md.Countries = countryNames(tmDbMovie.ProductionCountries)
+			md.Genres = genreNames(tmDbMovie.Genres)
+			md.OriginalTitle = tmDbMovie.OriginalTitle
+			md.Overview = tmDbMovie.Overview
+			md.PosterSmallUrl = fmt.Sprintf("%s%s%s", srv.tmDbConf.Images.BaseUrl, srv.conf.TMDbPosterSmall, tmDbMovie.PosterPath)
+			md.PosterLargeUrl = fmt.Sprintf("%s%s%s", srv.tmDbConf.Images.BaseUrl, srv.conf.TMDbPosterLarge, tmDbMovie.PosterPath)
+			md.ReleaseDate = tmDbMovie.ReleaseDate
+			md.Revenue = tmDbMovie.Revenue
+			md.TagLine = tmDbMovie.TagLine
+			md.TMDbId = tmDbMovie.Id
+		}
 	}
 	return
 }
