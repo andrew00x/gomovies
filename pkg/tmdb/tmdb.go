@@ -46,6 +46,11 @@ type MovieDetails struct {
 	Overview            string    `json:"overview"`
 	Genres              []Genre   `json:"genres"`
 	ImdbId              string    `json:"imdb_id"`
+	Runtime             int       `json:"runtime"`
+}
+
+type GenreResult struct {
+	Genres []Genre `json:"genres"`
 }
 
 type Genre struct {
@@ -70,7 +75,7 @@ type ErrorStatus struct {
 	Message string `json:"status_message"`
 }
 
-type Configuration struct {
+type Config struct {
 	Images Images `json:"images"`
 }
 
@@ -121,16 +126,23 @@ func GetTmDbInstance(apiKey string) *TmDb {
 	return tmDb
 }
 
-func (tmdb *TmDb) GetConfiguration() (Configuration, error) {
+func (tmdb *TmDb) GetGenres(lang string) ([]Genre, error) {
+	reqUrl := fmt.Sprintf("%s/genre/movie/list?api_key=%s&language=%s", baseUrl, tmdb.apiKey, lang)
+	genres := GenreResult{}
+	_, err := tmdb.request(reqUrl, &genres)
+	return genres.Genres, err
+}
+
+func (tmdb *TmDb) GetConfiguration() (Config, error) {
 	reqUrl := fmt.Sprintf("%s/configuration?api_key=%s", baseUrl, tmdb.apiKey)
-	config := Configuration{}
+	config := Config{}
 	_, err := tmdb.request(reqUrl, &config)
 	return config, err
 }
 
-func (tmdb *TmDb) SearchMovies(query string) ([]MovieShort, error) {
-	reqUrlFormat := "%s/search/movie?api_key=%s&query=%s&page=%d"
-	reqUrl := fmt.Sprintf(reqUrlFormat, baseUrl, tmdb.apiKey, url.QueryEscape(query), 1)
+func (tmdb *TmDb) SearchMovies(query, lang string) ([]MovieShort, error) {
+	reqUrlFormat := "%s/search/movie?api_key=%s&query=%s&page=%d&language=%s"
+	reqUrl := fmt.Sprintf(reqUrlFormat, baseUrl, tmdb.apiKey, url.QueryEscape(query), 1, lang)
 	result := MovieSearchResult{}
 	_, err := tmdb.request(reqUrl, &result)
 	all := make([]MovieShort, 0, result.TotalResults)
@@ -140,7 +152,7 @@ func (tmdb *TmDb) SearchMovies(query string) ([]MovieShort, error) {
 	totalPages := result.TotalPages
 	if totalPages > 1 {
 		for page := 2; err == nil && page <= totalPages; page++ {
-			reqUrl = fmt.Sprintf(reqUrlFormat, baseUrl, tmdb.apiKey, url.QueryEscape(query), page)
+			reqUrl = fmt.Sprintf(reqUrlFormat, baseUrl, tmdb.apiKey, url.QueryEscape(query), page, lang)
 			_, err = tmdb.request(reqUrl, &result)
 			for _, m := range result.Results {
 				all = append(all, m)
@@ -150,14 +162,14 @@ func (tmdb *TmDb) SearchMovies(query string) ([]MovieShort, error) {
 	return all, err
 }
 
-func (tmdb *TmDb) GetMovie(id int) (MovieDetails, error) {
-	reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, id, tmdb.apiKey)
+func (tmdb *TmDb) GetMovie(id int, lang string) (MovieDetails, error) {
+	reqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s&language=%s", baseUrl, id, tmdb.apiKey, lang)
 	mov := MovieDetails{}
 	_, err := tmdb.request(reqUrl, &mov)
 	if err != nil {
-		log.WithFields(log.Fields{"movie_id": id, "err": err}).Error("Error occurred while retrieving movie details from TMDb")
+		log.WithFields(log.Fields{"movie_id": id, "lang": lang, "err": err}).Error("Error occurred while retrieving movie details from TMDb")
 	} else {
-		log.WithFields(log.Fields{"movie_id": id, "title": mov.Title}).Info("Found details in TMDb")
+		log.WithFields(log.Fields{"movie_id": id, "lang": lang, "title": mov.Title}).Info("Found details in TMDb")
 	}
 	return mov, err
 }

@@ -21,4 +21,5 @@ type Catalog interface {
 	Refresh() error
 	Save() error
 	Update(u api.Movie) (api.Movie, error)
+	AddTag(tag string, id int) error
 }

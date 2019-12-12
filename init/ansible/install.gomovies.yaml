@@ -14,9 +14,6 @@
     - role: install.gomovies.config
       tags:
         - configuration
-    - role: install.gomovies.webui
-      tags:
-        - web_ui
     - role: install.gomovies.systemd
       tags:
         - systemd

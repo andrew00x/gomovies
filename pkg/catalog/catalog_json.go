@@ -56,10 +56,10 @@ func (ctl *JsonCatalog) All() []api.Movie {
 	return result
 }
 
-func (ctl *JsonCatalog) Find(title string) []api.Movie {
+func (ctl *JsonCatalog) Find(tag string) []api.Movie {
 	ctl.mu.RLock()
 	defer ctl.mu.RUnlock()
-	ids := ctl.index.Find(title)
+	ids := ctl.index.Find(tag)
 	result := make([]api.Movie, 0, len(ids))
 	var exists bool
 	var err error
@@ -67,10 +67,7 @@ func (ctl *JsonCatalog) Find(title string) []api.Movie {
 		p := ctl.movies[id]
 		m := *p
 		if exists, err = file.Exists(m.File); err != nil {
-			log.WithFields(log.Fields{
-				"err":  err,
-				"file": m.File,
-			}).Warn("Error occurred while trying access movie file")
+			log.WithFields(log.Fields{"err":  err, "file": m.File}).Warn("Error occurred while trying access movie file")
 		}
 		m.Available = exists && err == nil
 		result = append(result, m)
@@ -78,24 +75,30 @@ func (ctl *JsonCatalog) Find(title string) []api.Movie {
 	return result
 }
 
-func (ctl *JsonCatalog) Get(id int) (api.Movie, bool) {
+func (ctl *JsonCatalog) Get(id int) (mov api.Movie, found bool) {
 	ctl.mu.RLock()
 	defer ctl.mu.RUnlock()
 	m, ok := ctl.movies[id]
 	if ok {
-		return *m, true
+		found = true
+		mov = *m
+		if exists, err := file.Exists(m.File); err != nil {
+			log.WithFields(log.Fields{"err":  err, "file": m.File}).Warn("Error occurred while trying access movie file")
+		} else {
+			m.Available = exists
+		}
 	}
-	return api.Movie{}, false
+	return
 }
 
 func (ctl *JsonCatalog) Load() (err error) {
 	var movies map[int]*api.Movie
 	ctl.mu.Lock()
 	defer ctl.mu.Unlock()
-	if movies, err = readCatalog(catalogFile); err != nil {
+	if movies, err = ctl.readCatalog(); err != nil {
 		return
 	}
-	if err = updateCatalog(movies, ctl.conf.Dirs, ctl.conf.VideoFileExts); err != nil {
+	if err = ctl.scanForMovies(movies); err != nil {
 		return
 	}
 	var index Index
@@ -103,7 +106,7 @@ func (ctl *JsonCatalog) Load() (err error) {
 		return
 	}
 	for _, m := range movies {
-		index.Add(*m)
+		index.Add(m.Title, m.Id)
 	}
 	ctl.movies = movies
 	ctl.index = index
@@ -131,6 +134,7 @@ func (ctl *JsonCatalog) save() (err error) {
 		}
 	}()
 	encoder := json.NewEncoder(f)
+	encoder.SetIndent("", "  ")
 	err = encoder.Encode(ctl.movies)
 	return
 }
@@ -149,7 +153,7 @@ func (ctl *JsonCatalog) Update(u api.Movie) (m api.Movie, err error) {
 	}
 	// nothing else at the moment for update
 	p.TMDbId = u.TMDbId
-	m.Available = exists
+	p.Available = exists
 	m = *p
 
 	err = ctl.save()
@@ -157,7 +161,19 @@ func (ctl *JsonCatalog) Update(u api.Movie) (m api.Movie, err error) {
 	return
 }
 
-func readCatalog(catalogFile string) (movies map[int]*api.Movie, err error) {
+func (ctl *JsonCatalog) AddTag(tag string, id int) error {
+	ctl.mu.Lock()
+	defer ctl.mu.Unlock()
+	m := ctl.movies[id]
+	if m == nil {
+		return fmt.Errorf("unable add tag for unknown movie, id: %d", id)
+	}
+	ctl.index.Add(tag, id)
+	log.WithFields(log.Fields{"file": m.File, "tag": tag}).Info("Add tag for movie")
+	return nil
+}
+
+func (ctl *JsonCatalog) readCatalog() (movies map[int]*api.Movie, err error) {
 	movies = make(map[int]*api.Movie)
 	var exists bool
 	if exists, err = file.Exists(catalogFile); exists && err == nil {
@@ -176,20 +192,20 @@ func readCatalog(catalogFile string) (movies map[int]*api.Movie, err error) {
 	return
 }
 
-func updateCatalog(files map[int]*api.Movie, dirs []string, fileExt []string) (err error) {
+func (ctl *JsonCatalog) scanForMovies(files map[int]*api.Movie) (err error) {
 	var drives []*drive
 	if drives, err = mountedDrives(); err != nil {
 		return
 	}
 	known := make(map[string]bool, len(files))
-	var maxId = 0
+	var maxID = 0
 	for id, f := range files {
 		fileDriveMounted := driveMounted(drives, f)
 		exists := false
 		if exists, err = file.Exists(f.File); err == nil && (exists || !fileDriveMounted) {
 			known[f.File] = true
-			if id > maxId {
-				maxId = id
+			if id > maxID {
+				maxID = id
 			}
 		} else if err != nil {
 			return
@@ -197,12 +213,12 @@ func updateCatalog(files map[int]*api.Movie, dirs []string, fileExt []string) (e
 			delete(files, id)
 		}
 	}
-	idGen := util.CreateIdGenerator(maxId)
-	for _, dir := range dirs {
+	idGen := util.CreateIdGenerator(maxID)
+	for _, dir := range ctl.conf.Dirs {
 		exists := false
 		if exists, err = file.Exists(dir); exists && err == nil {
 			err = filepath.Walk(dir, func(path string, fInfo os.FileInfo, _ error) error {
-				if !known[path] && fInfo.Mode().IsRegular() && util.Contains(fileExt, filepath.Ext(fInfo.Name())) {
+				if !known[path] && fInfo.Mode().IsRegular() && util.Contains(ctl.conf.VideoFileExts, filepath.Ext(fInfo.Name())) {
 					id := idGen.Next()
 					title := fInfo.Name()
 					drive := fileDrive(drives, path)

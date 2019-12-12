@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -23,8 +24,24 @@ import (
 var conf *config.Config
 var catalogService *service.CatalogService
 var playerService *service.PlayerService
-var tmDbService *service.TMDbService
+var detailsService *service.DetailsService
 var torrentService *service.TorrentService
+var detailsLoadedFlag int32
+
+func isDetailsLoaded() (loaded bool) {
+	if atomic.LoadInt32(&detailsLoadedFlag) != 0 {
+		loaded = true
+	}
+	return
+}
+
+func setDetailsLoaded(value bool) {
+	var f int32
+	if value {
+		f = 1
+	}
+	atomic.StoreInt32(&detailsLoadedFlag, f)
+}
 
 type errResponse struct {
 	err  error
@@ -75,32 +92,13 @@ func main() {
 		torrentService = service.CreateTorrentService(conf)
 	}
 
-	if conf.TMDbApiKey != "" {
-		tmDbService, err = service.CreateTMDbService(conf)
-		if err != nil {
-			log.WithFields(log.Fields{"err": err}).Fatal("Could not create The Movie DB service")
-		}
+	detailsService, err = service.CreateDetailsService(conf)
+	if err != nil {
+		log.WithFields(log.Fields{"err": err}).Fatal("Could not create movies' details service")
 	}
-	if tmDbService != nil {
-		go func() {
-			log.Info("Start loading details from 'The Movie DB'")
-			startTMDbLoad := time.Now()
-			for _, m := range catalogService.All() {
-				if m.TMDbId > 0 {
-					if _, err = tmDbService.MovieDetails(m.TMDbId, true); err != nil {
-						log.WithFields(log.Fields{"err": err}).Warn("Error occurred while retrieving data from 'The Movie DB'")
-					}
-				}
-			}
-			stopTMDbLoad := time.Now()
-			log.WithFields(log.Fields{
-				"spent_time": stopTMDbLoad.Sub(startTMDbLoad).Truncate(time.Second),
-			}).Info("Stop loading details from 'The Movie DB'")
-		}()
-	}
+	go loadDetails()
 
-	web := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
-
+	server := http.Server{Addr: fmt.Sprintf(":%d", conf.WebPort), Handler: http.DefaultServeMux}
 	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -111,10 +109,7 @@ func main() {
 		} else {
 			log.Info("Catalog file saved")
 		}
-		if tmDbService != nil {
-			tmDbService.Stop()
-		}
-		if err = web.Shutdown(context.Background()); err != nil {
+		if err = server.Shutdown(context.Background()); err != nil {
 			log.WithFields(log.Fields{"err": err}).Fatal("Could not shutdown")
 		}
 	}()
@@ -158,33 +153,57 @@ func main() {
 	http.HandleFunc("/api/torrent/stop", torrentStop)
 	http.HandleFunc("/api/torrent/start", torrentStart)
 	http.HandleFunc("/api/torrent/delete", torrentDelete)
-	webClient()
 
 	log.WithFields(log.Fields{"port": conf.WebPort}).Info("Starting")
-	if err = web.ListenAndServe(); err != http.ErrServerClosed {
+	if err = server.ListenAndServe(); err != http.ErrServerClosed {
 		log.WithFields(log.Fields{"err": err}).Fatal("Could not start http listener")
 	}
 }
 
-func webClient() {
-	webDir := conf.WebDir
-	if webDir != "" {
-		log.WithFields(log.Fields{"dir": webDir}).Info("Starting web client")
-		fs := http.FileServer(http.Dir(webDir))
-		http.Handle("/", fs)
+func loadDetails() {
+	if isDetailsLoaded() {
+		log.Info("Skip loading movies' details since they are already loaded")
+		return
 	}
+	log.Info("Start loading movies' details")
+	startDetailsLoad := time.Now()
+	for _, m := range catalogService.All() {
+		for _, lang := range conf.DetailsLangs {
+			if d, ok, e := detailsService.MovieDetails(m, lang, true); e != nil {
+				log.WithFields(log.Fields{"err": e, "movie": m.Title}).Warn("Error occurred while loading movie details")
+			} else if ok {
+				tags := []string{d.Title, d.OriginalTitle}
+				for _, g := range d.Genres {
+					tags = append(tags, g)
+				}
+				for _, t := range tags {
+					e = catalogService.AddTag(t, m.Id)
+					if e != nil {
+						log.WithFields(log.Fields{"err": e, "movie": m.Title}).Warn("Error occurred while adding tag for movie")
+					}
+				}
+			}
+		}
+	}
+	stopDetailsLoad := time.Now()
+	log.WithFields(log.Fields{
+		"spent_time": stopDetailsLoad.Sub(startDetailsLoad).Truncate(time.Second),
+	}).Info("Stop loading movies' details")
+	setDetailsLoaded(true)
 }
 
-func allMovies(w http.ResponseWriter, _ *http.Request) {
+func allMovies(w http.ResponseWriter, r *http.Request) {
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = "en"
+	}
 	result := catalogService.All()
 	l := len(result)
 	for i := 0; i < l; i++ {
 		m := &result[i]
-		if m.TMDbId > 0 {
-			md, err := tmDbService.MovieDetails(m.TMDbId, false)
-			if err == nil && md != nil {
-				m.Details = md
-			}
+		md, found, err := detailsService.MovieDetails(*m, lang, isDetailsLoaded())
+		if err == nil && found {
+			m.Details = &md
 		}
 	}
 	writeJsonResponse(result, nil, w)
@@ -197,18 +216,17 @@ func audios(w http.ResponseWriter, _ *http.Request) {
 
 func details(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
-	var md *api.MovieDetails
+	var md api.MovieDetails
 	if err == nil {
+		lang := r.URL.Query().Get("lang")
+		if lang == "" {
+			lang = "en"
+		}
 		m, found := catalogService.Get(int(id))
 		if found {
-			if m.TMDbId != 0 {
-				md, err = tmDbService.MovieDetails(m.TMDbId, true)
-				if err == nil && md == nil {
-					err = newErrResponse(fmt.Errorf("not found details for movie id: %d, TMDbId: %d", id, m.TMDbId), http.StatusNotFound)
-				}
-			}
+			md, _, err = detailsService.MovieDetails(m, lang, true)
 		} else {
-			err = fmt.Errorf("invalid movie id: %d", id)
+			err = newErrResponse(fmt.Errorf("invalid movie id: %d", id), 404)
 		}
 	}
 	writeJsonResponse(md, err, w)
@@ -329,21 +347,27 @@ func refresh(w http.ResponseWriter, _ *http.Request) {
 
 func searchDetails(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	result, err := tmDbService.SearchDetails(query)
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = "en"
+	}
+	result, err := detailsService.SearchDetails(query, lang)
 	writeJsonResponse(result, err, w)
 }
 
 func searchMovies(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	result := catalogService.Find(query)
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = "en"
+	}
 	l := len(result)
 	for i := 0; i < l; i++ {
 		m := &result[i]
-		if m.TMDbId > 0 {
-			md, err := tmDbService.MovieDetails(m.TMDbId, false)
-			if err == nil && md != nil {
-				m.Details = md
-			}
+		md, found, err := detailsService.MovieDetails(*m, lang, isDetailsLoaded())
+		if err == nil && found {
+			m.Details = &md
 		}
 	}
 	writeJsonResponse(result, nil, w)
@@ -510,6 +534,7 @@ func writeJsonResponse(body interface{}, err error, w http.ResponseWriter) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
 	if err == nil {
 		if e := encoder.Encode(body); e != nil {
 			log.WithFields(log.Fields{"err": err}).Error("Error occurred while write response")

@@ -1,5 +1,6 @@
-- name: install torrent helper scripts
+- name: install helper scripts
   hosts: local
   any_errors_fatal: true
   roles:
     - role: install.torrent_scripts
+    - role: install.movies_scripts

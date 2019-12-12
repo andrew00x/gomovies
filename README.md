@@ -24,7 +24,6 @@ It requires setup Golang environment, usage of (Remote installation](#Remote ins
       * **dirs** - list of directories with video files
     * Optional
       * **web_port** - http port, default *8000*
-      * **web_dir** - path to directory that contains web client, for instance [gomovies-react](https://github.com/andrew00x/gomovies-react)
       * **video_file_exts** - extensions of video files, default is ```[".avi", ".mkv"]```
       * **tmdb_api_key** - api key of [The Movie Data Base (TMDb)](https://www.themoviedb.org/documentation/api). It is used for getting details about movies.
       * **tmdb_poster_small** - size of small poster, default is ```w92```, see [TMDb Images](https://developers.themoviedb.org/3/getting-started/images)
@@ -53,15 +52,14 @@ It requires [Ansible](https://www.ansible.com/)
   andrew:~$ make build-rpi3
   ```
 * Update configuration template, updating of **"dirs"** is needed, but can be done after installation to Raspberry.
-* Install all components at once. Next will be installed: *omxplayer*, *gomovies*, *config.json*, *web UI*, *systemd service*. **NOTE**: Old configuration will be lost
+* Install all components at once. Next will be installed: *omxplayer*, *gomovies*, *config.json*, *systemd service*. **NOTE**: Old configuration will be lost
   ```
-  andrew:~$ make install-rpi3-all WEB_UI_TAR=<path to tag.gz with web UI> TMDB_API_KEY=<TMDb API access key>
+  andrew:~$ make install-rpi3-all TMDB_API_KEY=<TMDb API access key>
   ```
   * Options:
-    * WEB_UI_TAR - path to tar.gz file with web UI, e.g. `WEB_UI_TAR=~/src/js/gomovies-react/build.tar.gz`
     * TMDB_API_KEY (optional) - API key to access The Movie DB, e.g. `TMDB_API_KEY=a1b2c3d4e5f6i7`
     ```
-    andrew:~$ make install-rpi3-all WEB_UI_TAR=~/src/js/gomovies-react/build.tar.gz TMDB_API_KEY=a1b2c3d4e5f6i7
+    andrew:~$ make install-rpi3-all TMDB_API_KEY=a1b2c3d4e5f6i7
     ```
 * Also all component can be installed separately.
   ```
@@ -69,7 +67,6 @@ It requires [Ansible](https://www.ansible.com/)
   andrew:~$ make install-rpi3-bin        # install gomovies binaries
   andrew:~$ make install-rpi3-config     # install gomovies config. Old configuration will be lost. Supported option TMDB_API_KEY
   andrew:~$ make install-rpi3-systemd    # install systemd service to manage gomovies app
-  andrew:~$ make install-rpi3-webui      # install web UI. Required option WEB_UI_TAR
   ```
 
 ## Control gomovies service
@@ -87,6 +84,4 @@ It requires [Ansible](https://www.ansible.com/)
  ```
  
 ## Other
-Web UI [gomovies-react](https://github.com/andrew00x/gomovies-react)
-
 Android Application [GoMoviesDroid](https://github.com/andrew00x/GoMoviesDroid)

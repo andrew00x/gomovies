@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+tag="$1"
+
+if [[ -z "${tag}" ]]; then
+    echo "Movie tag is required"
+    exit 1
+fi
+
+curl \
+  -X GET \
+  --data-urlencode "q=${tag}" \
+  -s \
+  -G \
+  http://{{ hostvars['gomovies_host'].ansible_host }}:{{ app.config.web_port }}/api/search

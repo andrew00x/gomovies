@@ -11,19 +11,21 @@ type Movie struct {
 }
 
 type MovieDetails struct {
-	Budget         int64    `json:"budget,omitempty"`
+	Budget         int64    `json:"budget"`
 	Companies      []string `json:"companies,omitempty"`
 	Countries      []string `json:"countries,omitempty"`
 	Genres         []string `json:"genres,omitempty"`
+	ImdbId         string   `json:"imdbId"`
 	OriginalTitle  string   `json:"originalTitle"`
-	Overview       string   `json:"overview,omitempty"`
+	Overview       string   `json:"overview"`
 	PosterSmallUrl string   `json:"posterSmallUrl"`
 	PosterLargeUrl string   `json:"posterLargeUrl"`
 	ReleaseDate    string   `json:"releaseDate"`
-	Revenue        int64    `json:"revenue,omitempty"`
-	TagLine        string   `json:"tagline,omitempty"`
+	Revenue        int64    `json:"revenue"`
+	Runtime        int      `json:"runtime"`
+	TagLine        string   `json:"tagline"`
+	Title          string   `json:"title"`
 	TMDbId         int      `json:"tmdbId"`
-	ImdbId         string   `json:"imdbId,omitempty"`
 }
 
 type Playback struct {
@@ -69,7 +71,7 @@ type TorrentDownloadFile struct {
 }
 
 type MessagePayload struct {
-	Message string `json:"message,omitempty"`
+	Message string `json:"message"`
 }
 
 type MoviePath struct {

@@ -58,3 +58,7 @@ func (srv *CatalogService) Refresh() error {
 func (srv *CatalogService) Update(u api.Movie) (api.Movie, error) {
 	return srv.ctl.Update(u)
 }
+
+func (srv *CatalogService) AddTag(tag string, id int) error {
+	return srv.ctl.AddTag(tag, id)
+}

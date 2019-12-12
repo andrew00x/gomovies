@@ -74,22 +74,10 @@ install-rpi3-systemd: ## Install systemd service to manage gomovies on Raspberry
 		--tags "systemd" \
 		$(ANSIBLE_DIR)/install.gomovies.yaml
 
-install-rpi3-webui:   ## Install web UI on Raspberry PI, WEB_UI_TAR must point to tar.gz that contains UI build,
-                      ## see https://github.com/andrew00x/gomovies-react
-                      ## EXAMPLE:
-                      ## make install-rpi3-webui WEB_UI_TAR=~/src/js/gomovies-react/build.tar.gz
-	@if test -z "$(WEB_UI_TAR)"; then echo "ERROR: WEB_UI_TAR is required for this target, try: make help"; exit 1; fi
+install-rpi3-all:     ## Install all in one on Raspberry
 	@ansible-playbook \
 		-i $(ANSIBLE_DIR)/raspberry.ini \
-		$(if $(WEB_UI_TAR), --extra-vars "web_ui_tar=$(WEB_UI_TAR)") \
-		--tags "web_ui" \
-		$(ANSIBLE_DIR)/install.gomovies.yaml
-
-install-rpi3-all:     ## Install all in one on Raspberry, see install-rpi3-webui about WEB_UI_TAR variable
-	@if test -z "$(WEB_UI_TAR)"; then echo "ERROR: WEB_UI_TAR is required for this target, try: make help"; exit 1; fi
-	@ansible-playbook \
-		-i $(ANSIBLE_DIR)/raspberry.ini \
-		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) $(if $(WEB_UI_TAR), web_ui_tar=$(WEB_UI_TAR)) "tmdb_api_key=$(if $(TMDB_API_KEY),$(TMDB_API_KEY),'')"" \
+		--extra-vars "gomovies_bin=$$(pwd)/$(OUTPUT_DIR)/$(ARCH)/$(OUTPUT) "tmdb_api_key=$(if $(TMDB_API_KEY),$(TMDB_API_KEY),'')"" \
 		$(ANSIBLE_DIR)/install.gomovies.yaml
 
 ##
@@ -114,10 +102,10 @@ install-rpi3-torrent-systemd: ## Install systemd service to manage torrent clien
 		--tags "systemd" \
 		$(ANSIBLE_DIR)/install.torrent.yaml
 
-install-torrent-scripts: ## Install bash scripts to manage torrents
+install-scripts: ## Install bash scripts to manage application
 	@ansible-playbook \
 		-i $(ANSIBLE_DIR)/raspberry.ini \
-		$(ANSIBLE_DIR)/install.torrent_scripts.yaml
+		$(ANSIBLE_DIR)/install.scripts.yaml
 
 install-rpi3-torrent-all:    ## Install all torrent client related parts in one on Raspberry
 	@ansible-playbook \

@@ -73,16 +73,27 @@ func TestConfigureConfigDirWithEnvVariable(t *testing.T) {
 	assert.Equal(t, dir, configDir)
 }
 
+func TestConfigHasDefaultDetailsLangs(t *testing.T) {
+	dir := os.Getenv("TMPDIR")
+	configPath := filepath.Join(dir, "config.json")
+	mustCreateConfigFileWithContent("{}", configPath)
+
+	config, err := loadConfig(configPath)
+
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"en"}, config.DetailsLangs)
+}
+
 func TestLoadConfig(t *testing.T) {
 	json := `{
 		"dirs": ["/home/andrew/movies"],
 		"video_file_exts": [".mkv", ".avi", ".mp4"],
-		"web_dir": "/home/andrew/gomovies/web",
 		"web_port": 9999,
         "tmdb_api_key": "xyz",
         "tmdb_poster_small": "small",
         "tmdb_poster_large": "large",
-        "torrent_remote_ctrl_addr": "/tmp/ctl.socket"
+        "torrent_remote_ctrl_addr": "/tmp/ctl.socket",
+		"details_langs": ["ua"]
 	}`
 	dir := os.Getenv("TMPDIR")
 	configPath := filepath.Join(dir, "config.json")
@@ -93,12 +104,12 @@ func TestLoadConfig(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, []string{"/home/andrew/movies"}, config.Dirs)
 	assert.Equal(t, []string{".mkv", ".avi", ".mp4"}, config.VideoFileExts)
-	assert.Equal(t, "/home/andrew/gomovies/web", config.WebDir)
 	assert.Equal(t, 9999, config.WebPort)
 	assert.Equal(t, "xyz", config.TMDbApiKey)
 	assert.Equal(t, "small", config.TMDbPosterSmall)
 	assert.Equal(t, "large", config.TMDbPosterLarge)
 	assert.Equal(t, "/tmp/ctl.socket", config.TorrentRemoteCtrlAddr)
+	assert.Equal(t, []string{"ua"}, config.DetailsLangs)
 }
 
 func mustCreateConfigFileWithContent(content, configPath string) {

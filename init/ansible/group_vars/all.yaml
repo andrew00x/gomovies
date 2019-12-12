@@ -2,7 +2,6 @@ gomovies_home_dir: /home/pi/.gomovies
 app:
   config:
     home_dir: "{{ gomovies_home_dir }}"
-    web_dir: "{{ gomovies_home_dir }}/web"
     web_port: 8000
   service:
     name: gomovies

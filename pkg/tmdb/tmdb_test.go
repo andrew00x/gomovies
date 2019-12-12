@@ -45,7 +45,7 @@ func TestGetConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedResult := Configuration{
+	expectedResult := Config{
 		Images{
 			BaseUrl:       "http://image.tmdb.org/t/p/",
 			SecureBaseUrl: "https://image.tmdb.org/t/p/",
@@ -59,7 +59,8 @@ func TestGetConfiguration(t *testing.T) {
 }
 
 func TestSearchMovie(t *testing.T) {
-	expectedReqUrl := fmt.Sprintf("%s/search/movie?api_key=%s&query=%s&page=1", baseUrl, fakeApiKey, url.QueryEscape("brave heart"))
+	lang := "en"
+	expectedReqUrl := fmt.Sprintf("%s/search/movie?api_key=%s&query=%s&page=1&language=%s", baseUrl, fakeApiKey, url.QueryEscape("brave heart"), lang)
 	doGetFunc = func(reqUrl string) (*http.Response, error) {
 		if reqUrl == expectedReqUrl {
 			resp := http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader(searchMoviesResponseBody))}
@@ -68,7 +69,7 @@ func TestSearchMovie(t *testing.T) {
 		return nil, fmt.Errorf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl)
 	}
 	tmdb := GetTmDbInstance(fakeApiKey)
-	result, err := tmdb.SearchMovies("brave heart")
+	result, err := tmdb.SearchMovies("brave heart", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +87,8 @@ func TestSearchMovie(t *testing.T) {
 }
 
 func TestGetMovie(t *testing.T) {
-	expectedReqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s", baseUrl, 123, fakeApiKey)
+	lang := "en"
+	expectedReqUrl := fmt.Sprintf("%s/movie/%d?api_key=%s&language=%s", baseUrl, 123, fakeApiKey, lang)
 	doGetFunc = func(reqUrl string) (*http.Response, error) {
 		if reqUrl == expectedReqUrl {
 			resp := http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader(movieDetailsResponse))}
@@ -95,7 +97,7 @@ func TestGetMovie(t *testing.T) {
 		return nil, fmt.Errorf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl)
 	}
 	tmdb := GetTmDbInstance(fakeApiKey)
-	result, err := tmdb.GetMovie(123)
+	result, err := tmdb.GetMovie(123, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,12 +130,27 @@ func TestGetMovie(t *testing.T) {
 	assert.Equal(t, expectedResult, result)
 }
 
+func TestGetGenres(t *testing.T) {
+	lang := "en"
+	expectedReqUrl := fmt.Sprintf("%s/genre/movie/list?api_key=%s&language=%s", baseUrl, fakeApiKey, lang)
+	doGetFunc = func(reqUrl string) (*http.Response, error) {
+		if reqUrl == expectedReqUrl {
+			return &http.Response{StatusCode: 200, Body: ioutil.NopCloser(strings.NewReader(genresResponse))}, nil
+		}
+		return nil, fmt.Errorf("invalid request url: %s, expected to be %s", reqUrl, expectedReqUrl)
+	}
+	tmdb := GetTmDbInstance(fakeApiKey)
+	genres, err := tmdb.GetGenres(lang)
+	assert.Nil(t, err)
+	assert.Equal(t, []Genre{{Id: 1, Name: "Action"}, {Id: 2, Name: "Drama"}, {Id: 3, Name: "History"}}, genres)
+}
+
 func TestHandleApiErrorStatus(t *testing.T) {
 	doGetFunc = func(reqUrl string) (*http.Response, error) {
 		return &http.Response{StatusCode: 400, Body: ioutil.NopCloser(strings.NewReader(apiErrorResponse))}, nil
 	}
 	tmdb := GetTmDbInstance(fakeApiKey)
-	_, err := tmdb.GetMovie(0)
+	_, err := tmdb.GetMovie(0, "en")
 	if err == nil {
 		t.Fatal("error expected")
 	}
@@ -229,6 +246,24 @@ const movieDetailsResponse = `
     {
       "iso_3166_1": "US",
       "name": "USA"
+    }
+  ]
+}`
+
+const genresResponse = `
+{
+  "genres": [
+    {
+      "id": 1,
+      "name": "Action"
+    },
+    {
+      "id": 2,
+      "name": "Drama"
+    },
+    {
+      "id": 3,
+      "name": "History"
     }
   ]
 }`
