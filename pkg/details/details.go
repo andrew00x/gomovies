@@ -28,7 +28,7 @@ func GetDetails(path, lang string) (mov api.MovieDetails, err error) {
 		}
 	}
 	if err != nil {
-		log.WithFields(log.Fields{"movie_path": path, "lang": lang, "err": err}).Error("Error occurred while retrieving movie details from TMDb")
+		log.WithFields(log.Fields{"movie_path": path, "lang": lang, "err": err}).Error("Error occurred while loading details from local file")
 	} else if !exists {
 		err = fmt.Errorf("there is no details for movie %s, lang %s", path, lang)
 	}

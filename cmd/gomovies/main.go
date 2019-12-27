@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -59,6 +61,27 @@ func isErrResponse(err error) bool {
 
 func (e *errResponse) Error() string {
 	return e.err.Error()
+}
+
+type contentRepository struct {
+	prefix string
+	conf *config.Config
+	http.FileSystem
+}
+
+func (fs contentRepository) Open(name string) (http.File, error) {
+	invalid := true
+	path := filepath.Join("/", strings.TrimPrefix(name, fs.prefix))
+	for _, d := range fs.conf.Dirs {
+		if strings.HasPrefix(path, d) {
+			invalid = false
+			break
+		}
+	}
+	if invalid {
+		return nil, os.ErrNotExist
+	}
+	return os.Open(path)
 }
 
 func init() {
@@ -153,6 +176,8 @@ func main() {
 	http.HandleFunc("/api/torrent/stop", torrentStop)
 	http.HandleFunc("/api/torrent/start", torrentStart)
 	http.HandleFunc("/api/torrent/delete", torrentDelete)
+	content := http.FileServer(contentRepository{prefix: "/file/", conf: conf})
+	http.Handle("/file/", content)
 
 	log.WithFields(log.Fields{"port": conf.WebPort}).Info("Starting")
 	if err = server.ListenAndServe(); err != http.ErrServerClosed {
@@ -177,9 +202,11 @@ func loadDetails() {
 					tags = append(tags, g)
 				}
 				for _, t := range tags {
-					e = catalogService.AddTag(t, m.Id)
-					if e != nil {
-						log.WithFields(log.Fields{"err": e, "movie": m.Title}).Warn("Error occurred while adding tag for movie")
+					if t != "" {
+						e = catalogService.AddTag(t, m.Id)
+						if e != nil {
+							log.WithFields(log.Fields{"err": e, "movie": m.Title}).Warn("Error occurred while adding tag for movie")
+						}
 					}
 				}
 			}

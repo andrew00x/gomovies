@@ -2,167 +2,112 @@ package catalog
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
-	"testing"
 	"text/template"
+
+	"testing"
 
 	"github.com/andrew00x/gomovies/pkg/api"
 	"github.com/andrew00x/gomovies/pkg/config"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestMain(m *testing.M) {
-	setup()
-	code := m.Run()
-	os.Exit(code)
+var conf config.Config
+
+type devDrive struct {
+	name  string
+	id    string
+	label string
+	Dev   string
+	Mount string
 }
+
+var testRoot string
+
+const sda = "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0"
+const sda1Label = "wd640"
+const sdb = "usb-WDC_WD50_00AAKS-00A7B0_007E7123456A-0:0"
+const sdb1Label = "wd500"
+
+var drives []devDrive
+var moviesDir string
+var cartoonsDir string
+var movies []api.Movie
 
 func TestLoadCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	mustCreateDir(filepath.Join(moviesDir, "back to the future"))
-	files := []string{
-		filepath.Join(moviesDir, "brave heart.mkv"),
-		filepath.Join(moviesDir, "back to the future", "back to the future 1.avi"),
-	}
-	for _, f := range files {
-		mustCreateFile(f)
-	}
-	defer func() { mustRemoveFiles(files...) }()
-	movies := []api.Movie{
-		{Id: 1, File: files[0], Title: filepath.Base(files[0]), DriveName: sda1},
-		{Id: 2, File: files[1], Title: filepath.Base(files[1]), DriveName: sda1},
-	}
-
-	mustSaveCatalogFile(movies)
+	setup()
 
 	index := indexMock{[]indexItem{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	catalog, err := createJsonCatalog(&config.Config{})
+	catalog, err := createJsonCatalog(&conf)
 	assert.Nil(t, err)
 
-	expected := make([]api.Movie, len(movies))
-	copy(expected, movies)
-	for i := range expected {
-		expected[i].Available = true
+	expected := []api.Movie{
+		{File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true, DriveName: sda1Label},
 	}
 	catalogContent := catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
-
-	expectedIndex := make([]indexItem, len(expected))
-	for i := range movies {
-		expectedIndex[i] = indexItem{expected[i].Title, expected[i].Id}
+	for i := range catalogContent { // ignore id
+		catalogContent[i].Id = 0
 	}
-	sort.Sort(indexById(index.added))
-	assert.Equal(t, expectedIndex, index.added)
-}
+	assert.ElementsMatch(t, expected, catalogContent)
 
-func TestCreateNewCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	mustCreateDir(filepath.Join(moviesDir, "start wars"))
-	files := []string{
-		filepath.Join(moviesDir, "gladiator.mkv"),
-		filepath.Join(moviesDir, "start wars", "start wars 1.avi"),
-		filepath.Join(moviesDir, "start wars", "start wars 2.mkv"),
+	expectedIndex := make([]indexItem, 0, len(expected))
+	for _, i := range catalog.All() {
+		expectedIndex = append(expectedIndex, indexItem{i.Title, i.Id})
 	}
-	defer func() { mustRemoveFiles(files...) }()
-
-	movies := make([]api.Movie, 0, len(files))
-	id := 1
-	for _, f := range files {
-		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
-		id++
-	}
-
-	index := indexMock{[]indexItem{}, []int{}}
-	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
-
-	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := createJsonCatalog(conf)
-	assert.Nil(t, err)
-
-	expected := make([]api.Movie, 0, len(movies))
-	for _, m := range movies {
-		m.Available = true
-		expected = append(expected, m)
-	}
-	catalogContent := catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
-
-	expectedIndex := make([]indexItem, len(expected))
-	for i := range movies {
-		expectedIndex[i] = indexItem{expected[i].Title, expected[i].Id}
-	}
-	sort.Sort(indexById(index.added))
-	assert.Equal(t, expectedIndex, index.added)
+	assert.ElementsMatch(t, expectedIndex, index.added)
 }
 
 func TestCreateAndUpdateCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	mustCreateDir(filepath.Join(moviesDir, "lethal weapon"))
-	files := []string{
-		filepath.Join(moviesDir, "green mile.mkv"),
-		filepath.Join(moviesDir, "lethal weapon", "lethal weapon 1.avi"),
-	}
-	defer func() { mustRemoveFiles(files...) }()
+	setup()
 
-	movies := make([]api.Movie, 0, len(files))
-	id := 1
-	for _, f := range files {
-		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
-		id++
-	}
-
-	mustSaveCatalogFile(movies)
-
-	newFile := filepath.Join(moviesDir, "lethal weapon", "lethal weapon 4.mkv")
-	mustCreateFile(newFile)
-	files = append(files, newFile)
-	movies = append(movies, api.Movie{Id: id, File: newFile, Title: filepath.Base(newFile), DriveName: sda1})
+	iceAge := filepath.Join(cartoonsDir, "ice age.avi")
+	mustCreateFile(iceAge)
+	mustSaveCatalogFile([]api.Movie{
+		{File: iceAge, Title: filepath.Base(iceAge), DriveName: sdb1Label},
+	})
 
 	index := indexMock{[]indexItem{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := createJsonCatalog(conf)
+	catalog, err := createJsonCatalog(&conf)
 	assert.Nil(t, err)
 
-	expected := make([]api.Movie, 0, len(movies))
-	for _, m := range movies {
-		m.Available = true
-		expected = append(expected, m)
+	expected := []api.Movie{
+		{File: iceAge, Title: filepath.Base(iceAge), Available: true, DriveName: sdb1Label},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true, DriveName: sda1Label},
 	}
 	catalogContent := catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
-
-	expectedIndex := make([]indexItem, len(expected))
-	for i := range movies {
-		expectedIndex[i] = indexItem{expected[i].Title, expected[i].Id}
+	for i := range catalogContent { // ignore id
+		catalogContent[i].Id = 0
 	}
-	sort.Sort(indexById(index.added))
-	assert.Equal(t, expectedIndex, index.added)
+	assert.ElementsMatch(t, expected, catalogContent)
+
+	expectedIndex := make([]indexItem, 0, len(expected))
+	for _, i := range catalog.All() {
+		expectedIndex = append(expectedIndex, indexItem{i.Title, i.Id})
+	}
+	assert.ElementsMatch(t, expectedIndex, index.added)
 }
 
 func TestSaveCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	files := []string{
-		filepath.Join(moviesDir, "shawshank redemption.mkv"),
-		filepath.Join(moviesDir, "fight club.avi"),
-	}
+	setup()
 
-	movies := make(map[int]*api.Movie)
-	id := 1
-	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, Title: filepath.Base(f), File: f, DriveName: sda1}
-		id++
+	movies := map[int]*api.Movie{
+		1: {File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		2: {File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
+		3: {File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true},
+		4: {File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true},
 	}
 	catalog := &JsonCatalog{movies: movies}
 	err := catalog.Save()
@@ -171,28 +116,24 @@ func TestSaveCatalog(t *testing.T) {
 	f, err := os.Open(catalogFile)
 	assert.Nil(t, err)
 
-	defer func() {
-		clsErr := f.Close()
-		assert.Nil(t, clsErr)
-	}()
 	parser := json.NewDecoder(f)
 	var saved map[int]*api.Movie
 	err = parser.Decode(&saved)
+	assert.Nil(t, err)
+	err = f.Close()
 	assert.Nil(t, err)
 
 	assert.Equal(t, movies, saved)
 }
 
 func TestGetById(t *testing.T) {
-	files := []string{
-		filepath.Join(moviesDir, "hobbit 1 (an unexpected journey).mkv"),
-		filepath.Join(moviesDir, "hobbit 2 (the desolation of smaug).mkv"),
-	}
-	var id = 1
-	movies := make(map[int]*api.Movie)
-	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1}
-		id++
+	setup()
+
+	movies := map[int]*api.Movie{
+		1: {File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		2: {File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
+		3: {File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true},
+		4: {File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true},
 	}
 	catalog := &JsonCatalog{movies: movies}
 
@@ -203,6 +144,7 @@ func TestGetById(t *testing.T) {
 }
 
 func TestGetByIdReturnsEmptyResultWhenFileDoesNotExist(t *testing.T) {
+	setup()
 	movies := make(map[int]*api.Movie)
 	catalog := &JsonCatalog{movies: movies}
 
@@ -213,17 +155,13 @@ func TestGetByIdReturnsEmptyResultWhenFileDoesNotExist(t *testing.T) {
 }
 
 func TestFindByNameInCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	files := []string{
-		filepath.Join(moviesDir, "hobbit 1 (an unexpected journey).mkv"),
-		filepath.Join(moviesDir, "hobbit 2 (the desolation of smaug).mkv"),
-		filepath.Join(moviesDir, "hobbit 3 (battle of five armies).mkv"),
-	}
-	var id = 1
-	movies := make(map[int]*api.Movie)
-	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1}
-		id++
+	setup()
+
+	movies := map[int]*api.Movie{
+		1: {File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		2: {File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
+		3: {File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true},
+		4: {File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true},
 	}
 
 	index := indexMock{added: []indexItem{}, found: []int{1, 3}}
@@ -236,162 +174,124 @@ func TestFindByNameInCatalog(t *testing.T) {
 }
 
 func TestRemoveNonexistentFilesFromCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	files := []string{
-		filepath.Join(moviesDir, "home alone 1.avi"),
-		filepath.Join(moviesDir, "home alone 2.avi"),
-	}
-	mustCreateFile(files[0])
-	defer mustRemoveFiles(files[0])
-	var id = 1
-	movies := make([]api.Movie, 0, len(files))
-	for _, f := range files {
-		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
-		id++
-	}
-	mustSaveCatalogFile(movies)
+	setup()
+	iceAge := filepath.Join(cartoonsDir, "ice age.avi")
+	mustRemoveFiles(iceAge)
+	mustSaveCatalogFile([]api.Movie{
+		{File: iceAge, Title: filepath.Base(iceAge), DriveName: sdb1Label},
+	})
 
 	index := indexMock{[]indexItem{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".avi"}}
-	catalog, err := createJsonCatalog(conf)
+	catalog, err := createJsonCatalog(&conf)
 	assert.Nil(t, err)
 
-	m := movies[0]
-	m.Available = true
-	expected := []api.Movie{m}
-	catalogContent := catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
-
-	expectedIndex := make([]indexItem, len(expected))
-	for i := range expected {
-		expectedIndex[i] = indexItem{expected[i].Title, expected[i].Id}
+	expected := []api.Movie{
+		{File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true, DriveName: sda1Label},
+		{File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true, DriveName: sda1Label},
 	}
-	sort.Sort(indexById(index.added))
-	assert.Equal(t, expectedIndex, index.added)
+	catalogContent := catalog.All()
+	for i := range catalogContent { // ignore id
+		catalogContent[i].Id = 0
+	}
+	assert.ElementsMatch(t, expected, catalogContent)
+
+	expectedIndex := make([]indexItem, 0, len(expected))
+	for _, i := range catalog.All() {
+		expectedIndex = append(expectedIndex, indexItem{i.Title, i.Id})
+	}
+	assert.ElementsMatch(t, expectedIndex, index.added)
 }
 
 func TestKeepNonexistentFilesWhenCorrespondedDriveIsUnmounted(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	moviesDir2 := filepath.Join(testRoot, "movies2")
-	mustCreateDir(moviesDir2)
-	files := []string{
-		filepath.Join(moviesDir, "rush hour 1.avi"),
-		filepath.Join(moviesDir, "rush hour 2.mkv"),
-	}
-	var id = 1
-	movies := make([]api.Movie, 0, len(files))
-	for _, f := range files {
-		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
-		id++
-	}
-	defer func() { mustRemoveFiles(files...) }()
-	nonexistent := filepath.Join(moviesDir2, "rush hour 3.mkv")
-	files = append(files, nonexistent)
-	movies = append(movies, api.Movie{Id: id, File: nonexistent, Title: filepath.Base(nonexistent), DriveName: "unmounted-drive"})
-	mustSaveCatalogFile(movies)
+	setup()
+	otherMoviesDir := filepath.Join(testRoot, "media", "pi", "unmount", "movies")
+	mustSaveCatalogFile([]api.Movie{
+		{Id: 1, File: filepath.Join(otherMoviesDir, "rush hour 1.avi"), Title: "rush hour 1.avi", DriveName: "unmount"},
+		{Id: 2, File: filepath.Join(otherMoviesDir, "rush hour 2.mkv"), Title: "rush hour 2.mkv", DriveName: "unmount"},
+	})
 
 	index := indexMock{[]indexItem{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{Dirs: []string{testRoot}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := createJsonCatalog(conf)
+	conf := config.Config{VideoFileExts: []string{".mkv", ".avi"}, Dirs: []string{moviesDir, cartoonsDir, otherMoviesDir}}
+	catalog, err := createJsonCatalog(&conf)
 	assert.Nil(t, err)
 
-	expected := make([]api.Movie, 0, len(movies))
-	for _, m := range movies {
-		m.Available = m.File != nonexistent
-		expected = append(expected, m)
+	expected := []api.Movie{
+		{File: filepath.Join(otherMoviesDir, "rush hour 1.avi"), Title: "rush hour 1.avi", DriveName: "unmount", Available: false},
+		{File: filepath.Join(otherMoviesDir, "rush hour 2.mkv"), Title: "rush hour 2.mkv", DriveName: "unmount", Available: false},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", DriveName: sda1Label, Available: true},
 	}
 	catalogContent := catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
-
-	expectedIndex := make([]indexItem, len(expected))
-	for i := range movies {
-		expectedIndex[i] = indexItem{expected[i].Title, expected[i].Id}
+	for i := range catalogContent { // ignore id
+		catalogContent[i].Id = 0
 	}
-	sort.Sort(indexById(index.added))
-	assert.Equal(t, expectedIndex, index.added)
+	assert.ElementsMatch(t, expected, catalogContent)
+
+	expectedIndex := make([]indexItem, 0, len(expected))
+	for _, i := range catalog.All() {
+		expectedIndex = append(expectedIndex, indexItem{i.Title, i.Id})
+	}
+	assert.ElementsMatch(t, expectedIndex, index.added)
 }
 
 func TestRefreshCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	files := []string{
-		filepath.Join(moviesDir, "rocky 1.avi"),
-		filepath.Join(moviesDir, "rocky 2.mkv"),
-		filepath.Join(moviesDir, "rocky 4.avi"),
-	}
-	movies := make([]api.Movie, 0, len(files))
-	id := 1
-	for _, f := range files {
-		mustCreateFile(f)
-		movies = append(movies, api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1})
-		id++
-	}
-	mustSaveCatalogFile(movies)
-	defer func() { mustRemoveFiles(files...) }()
-
+	setup()
 	index := indexMock{[]indexItem{}, []int{}}
 	indexFactory = func(_ *config.Config) (Index, error) { return &index, nil }
 
-	conf := &config.Config{Dirs: []string{moviesDir}, VideoFileExts: []string{".mkv", ".avi"}}
-	catalog, err := createJsonCatalog(conf)
+	conf := config.Config{VideoFileExts: []string{".mkv", ".avi"}, Dirs: []string{moviesDir}}
+	catalog, err := createJsonCatalog(&conf)
 	assert.Nil(t, err)
 
-	expected := make([]api.Movie, 0, len(movies))
-	for _, m := range movies {
-		m.Available = true
-		expected = append(expected, m)
+	for _, p := range []string{
+		filepath.Join(moviesDir, "rush hour 1.avi"),
+		filepath.Join(moviesDir, "rush hour 2.mkv")} {
+		mustCreateFile(p)
 	}
-	catalogContent := catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
+	mustRemoveMovieFiles([]api.Movie{movies[2]})
 
-	mustRemoveFiles(files[2])
-	newFile := filepath.Join(moviesDir, "rocky 5.mkv")
-	files[2] = newFile
-	mustCreateFile(newFile)
-	movies = movies[0:2]
-	movies = append(movies, api.Movie{Id: 3, File: newFile, Title: filepath.Base(newFile), DriveName: sda1})
 	index = indexMock{[]indexItem{}, []int{}}
-
 	err = catalog.Refresh()
 	assert.Nil(t, err)
 
-	expected = make([]api.Movie, 0, len(movies))
-	for _, m := range movies {
-		m.Available = true
-		expected = append(expected, m)
+	expected := []api.Movie{
+		{File: filepath.Join(moviesDir, "rush hour 1.avi"), Title: "rush hour 1.avi", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "rush hour 2.mkv"), Title: "rush hour 2.mkv", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", DriveName: sda1Label, Available: true},
+		{File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", DriveName: sda1Label, Available: true},
 	}
-	catalogContent = catalog.All()
-	sort.Sort(moviesById(catalogContent))
-	assert.Equal(t, expected, catalogContent)
 
-	expectedIndex := make([]indexItem, len(expected))
-	for i := range movies {
-		expectedIndex[i] = indexItem{expected[i].Title, expected[i].Id}
+	catalogContent := catalog.All()
+	for i := range catalogContent { // ignore id
+		catalogContent[i].Id = 0
 	}
-	sort.Sort(indexById(index.added))
-	assert.Equal(t, expectedIndex, index.added)
+	assert.ElementsMatch(t, expected, catalogContent)
+
+	expectedIndex := make([]indexItem, 0, len(expected))
+	for _, i := range catalog.All() {
+		expectedIndex = append(expectedIndex, indexItem{i.Title, i.Id})
+	}
+	assert.ElementsMatch(t, expectedIndex, index.added)
 }
 
 func TestUpdateCatalog(t *testing.T) {
-	mustRemoveFiles(catalogFile)
-	files := []string{
-		filepath.Join(moviesDir, "hobbit 1 (an unexpected journey).mkv"),
-		filepath.Join(moviesDir, "hobbit 2 (the desolation of smaug).mkv"),
-	}
-	var id = 1
-	movies := make(map[int]*api.Movie)
-	for _, f := range files {
-		movies[id] = &api.Movie{Id: id, File: f, Title: filepath.Base(f), DriveName: sda1}
-		id++
-	}
+	setup()
 
+	movies := map[int]*api.Movie{
+		1: {File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		2: {File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
+		3: {File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true},
+		4: {File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true},
+	}
 	catalog := &JsonCatalog{movies: movies}
 
 	updated, err := catalog.Update(api.Movie{Id: 1, TMDbId: 101})
@@ -401,16 +301,12 @@ func TestUpdateCatalog(t *testing.T) {
 
 	f, err := os.Open(catalogFile)
 	assert.Nil(t, err)
-
-	defer func() {
-		clsErr := f.Close()
-		assert.Nil(t, clsErr)
-	}()
 	parser := json.NewDecoder(f)
 	var saved map[int]*api.Movie
 	err = parser.Decode(&saved)
 	assert.Nil(t, err)
-
+	err = f.Close()
+	assert.Nil(t, err)
 	assert.Equal(t, movies, saved)
 }
 
@@ -425,9 +321,10 @@ func TestUpdateCatalogFailsWhenUpdatedFileDoesNotExist(t *testing.T) {
 
 func TestAddTag(t *testing.T) {
 	movies := map[int]*api.Movie{
-		1: {Title: "hobbit 1 (an unexpected journey).mkv"},
-		2: {Title: "hobbit 2 (the desolation of smaug).mkv"},
-		3: {Title: "hobbit 3 (battle of five armies).mk"},
+		1: {File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		2: {File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
+		3: {File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true},
+		4: {File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true},
 	}
 	index := indexMock{[]indexItem{}, []int{}}
 	catalog := &JsonCatalog{movies: movies, index: &index}
@@ -444,117 +341,114 @@ func TestAddTag(t *testing.T) {
 
 func TestAddTagFailsWhenTryTagNotExistedMovie(t *testing.T) {
 	movies := map[int]*api.Movie{
-		1: {Title: "hobbit 1 (an unexpected journey).mkv"},
-		3: {Title: "hobbit 3 (battle of five armies).mk"},
+		1: {File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		2: {File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
 	}
 	index := indexMock{[]indexItem{}, []int{}}
 	catalog := &JsonCatalog{movies: movies, index: &index}
-	err := catalog.AddTag("collection one", 2)
+	err := catalog.AddTag("collection one", 3)
 	assert.NotNil(t, err)
-	assert.Equal(t, "unable add tag for unknown movie, id: 2", err.Error())
+	assert.Equal(t, "unable add tag for unknown movie, id: 3", err.Error())
 }
 
-type moviesById []api.Movie
-
-func (m moviesById) Less(i, j int) bool { return m[i].Id < m[j].Id }
-func (m moviesById) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-func (m moviesById) Len() int           { return len(m) }
-
-type indexById []indexItem
-
-func (m indexById) Less(i, j int) bool { return m[i].id < m[j].id }
-func (m indexById) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-func (m indexById) Len() int           { return len(m) }
-
-var testRoot string
-var moviesDir string
-
-const sda = "usb-WDC_WD64_00AAKS-00A7B0_00A1234567E7-0:0"
-const sda1 = sda + "-part1"
-
-func setup() {
-	tmp := os.Getenv("TMPDIR")
-	testRoot = filepath.Join(tmp, "CatalogTest")
-	err := os.RemoveAll(testRoot)
-	if err != nil && !os.IsNotExist(err) {
-		log.Fatal(err)
-	}
-	createDevFiles()
-	etcDir = filepath.Join(testRoot, "etc")
-	mustCreateDir(etcDir)
-	moviesDir = filepath.Join(testRoot, "movies")
-	mustCreateDir(moviesDir)
-	writeMtabFile(etcDir)
-	catalogFile = filepath.Join(testRoot, "catalog.json")
-	indexFactory = func(_ *config.Config) (Index, error) { return &indexMock{}, nil }
-}
-
-func writeMtabFile(etc string) {
+func mustCreateEtcDir(rootDir string, drives []devDrive) (etc string) {
 	var wd string
 	var err error
 	if wd, err = os.Getwd(); err != nil {
 		log.Fatal(err)
 	}
 	var tpl *template.Template
-	if tpl, err = template.New("mtab").ParseFiles(filepath.Join(wd, "testdata", "etc", "mtab")); err != nil {
+	if tpl, err = template.New("mtab").ParseFiles(filepath.Join(wd, "testdata", "mtab")); err != nil {
 		log.Fatal(err)
 	}
+	etc = filepath.Join(rootDir, "etc")
+	mustCreateDir(etc)
 	var mtabFile *os.File
 	if mtabFile, err = os.OpenFile(filepath.Join(etc, "mtab"), os.O_RDWR|os.O_CREATE, 0644); err != nil {
 		log.Fatal(err)
 	}
-	defer func() {
-		if clsErr := mtabFile.Close(); clsErr != nil {
-			log.Println(clsErr)
+	var mounts []devDrive
+	for _, d := range drives {
+		if d.Mount != "" {
+			mounts = append(mounts, d)
 		}
-	}()
-	if err = tpl.Execute(mtabFile, moviesDir); err != nil {
+	}
+	if err = tpl.Execute(mtabFile, mounts); err != nil {
 		log.Fatal(err)
 	}
+	if err = mtabFile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return
 }
 
-func createDevFiles() {
-	dev := filepath.Join(testRoot, "dev")
-	disk := filepath.Join(dev, "disk")
+func setup() {
+	tmp := os.Getenv("TMPDIR")
+	testRoot = filepath.Join(tmp, "CatalogTest")
+
+	if err := os.RemoveAll(testRoot); err != nil && !os.IsNotExist(err) {
+		log.Fatal(err)
+	}
+	drives = []devDrive{
+		{name: "mmcblk0p0", id: "mmc-SL16G_0x2a1994a5"},
+		{name: "mmcblk0p1", id: "mmc-SL16G_0x2a1994a5-part1", label: "RECOVERY", Dev: "/dev/mmcblk0p1"},
+		{name: "mmcblk0p2", id: "mmc-SL16G_0x2a1994a5-part2", Dev: "/dev/mmcblk0p2"},
+		{name: "mmcblk0p5", id: "mmc-SL16G_0x2a1994a5-part5", label: "SETTINGS", Dev: "/dev/mmcblk0p5"},
+		{name: "mmcblk0p6", id: "mmc-SL16G_0x2a1994a5-part6", label: "boot", Dev: "/dev/mmcblk0p6"},
+		{name: "mmcblk0p7", id: "mmc-SL16G_0x2a1994a5-part7", label: "root", Dev: "/dev/mmcblk0p7"},
+		{name: "mmcblk0p8", id: "mmc-SL16G_0x2a1994a5-part8", label: "data", Dev: "/dev/mmcblk0p8"},
+		{name: "sda", id: sda, Dev: fmt.Sprintf("/dev/%s", sda)},
+		{name: "sda1", id: sda1Label, Mount: fmt.Sprintf("%s/media/pi/%s", testRoot, sda1Label), Dev: "/dev/sda1"},
+		{name: "sdb", id: sdb, Dev: fmt.Sprintf("/dev/%s", sdb)},
+		{name: "sdb1", id: sdb1Label, Mount: fmt.Sprintf("%s/media/pi/%s", testRoot, sdb1Label), Dev: "/dev/sdb1"}}
+	devcd = mustCreateDevDir(testRoot, drives)
+	etcDir = mustCreateEtcDir(testRoot, drives)
+	moviesDir = filepath.Join(testRoot, "media", "pi", sda1Label, "movies")
+	mustCreateDir(moviesDir)
+	cartoonsDir = filepath.Join(testRoot, "media", "pi", sdb1Label, "cartoons")
+	mustCreateDir(cartoonsDir)
+	movies = []api.Movie{
+		{File: filepath.Join(moviesDir, "star wars", "star wars 1.avi"), Title: "star wars 1.avi", Available: true},
+		{File: filepath.Join(moviesDir, "star wars", "star wars 2.mkv"), Title: "star wars 2.mkv", Available: true},
+		{File: filepath.Join(moviesDir, "gladiator.mkv"), Title: "gladiator.mkv", Available: true},
+		{File: filepath.Join(moviesDir, "green mile.mkv"), Title: "green mile.mkv", Available: true},
+	}
+	mustCreateMovieFiles(movies)
+	confDir := filepath.Join(testRoot, "gomovies", "config")
+	mustCreateDir(confDir)
+	catalogFile = filepath.Join(confDir, "catalog.json")
+	conf = config.Config{VideoFileExts: []string{".mkv", ".avi"}, Dirs: []string{moviesDir, cartoonsDir}}
+}
+
+func mustCreateDevDir(rootDir string, drives []devDrive) (devDir string) {
+	devDir = filepath.Join(rootDir, "dev")
+	disk := filepath.Join(devDir, "disk")
 	byId := filepath.Join(disk, "by-id")
 	byLabel := filepath.Join(disk, "by-label")
 
-	mustCreateDir(dev)
+	mustCreateDir(devDir)
 	mustCreateDir(disk)
 	mustCreateDir(byId)
 	mustCreateDir(byLabel)
 
-	drives := map[string]struct {
-		id    string
-		label string
-	}{
-		"mmcblk0p0": {id: "mmc-SL16G_0x2a1994a5"},
-		"mmcblk0p1": {id: "mmc-SL16G_0x2a1994a5-part1", label: "RECOVERY"},
-		"mmcblk0p2": {id: "mmc-SL16G_0x2a1994a5-part2"},
-		"mmcblk0p5": {id: "mmc-SL16G_0x2a1994a5-part5", label: "SETTINGS"},
-		"mmcblk0p6": {id: "mmc-SL16G_0x2a1994a5-part6", label: "boot"},
-		"mmcblk0p7": {id: "mmc-SL16G_0x2a1994a5-part7", label: "root"},
-		"mmcblk0p8": {id: "mmc-SL16G_0x2a1994a5-part8", label: "data"},
-		"sda":       {id: sda},
-		"sda1":      {id: sda1}}
 	var err error
 	var wd string
 	if wd, err = os.Getwd(); err != nil {
 		log.Fatal(err)
 	}
-	for n, d := range drives {
-		mustCreateFile(filepath.Join(dev, n))
+	for _, d := range drives {
+		mustCreateFile(filepath.Join(devDir, d.name))
 		if err = os.Chdir(byId); err != nil {
 			log.Fatal(err)
 		}
-		if err = os.Symlink(filepath.Join("../..", n), filepath.Join(byId, d.id)); err != nil {
+		if err = os.Symlink(filepath.Join("../..", d.name), filepath.Join(byId, d.id)); err != nil {
 			log.Fatal(err)
 		}
 		if d.label != "" {
 			if err = os.Chdir(byId); err != nil {
 				log.Fatal(err)
 			}
-			if err = os.Symlink(filepath.Join("../..", n), filepath.Join(byLabel, d.label)); err != nil {
+			if err = os.Symlink(filepath.Join("../..", d.name), filepath.Join(byLabel, d.label)); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -562,7 +456,22 @@ func createDevFiles() {
 	if err = os.Chdir(wd); err != nil {
 		log.Fatal(err)
 	}
-	devcd = dev
+	return
+}
+
+func mustCreateMovieFiles(movies []api.Movie) {
+	for _, m := range movies {
+		mustCreateDir(filepath.Dir(m.File))
+		mustCreateFile(m.File)
+	}
+}
+
+func mustRemoveMovieFiles(movies []api.Movie) {
+	var files []string
+	for _, m := range movies {
+		files = append(files, m.File)
+	}
+	mustRemoveFiles(files...)
 }
 
 func mustCreateDir(dir string) {
@@ -594,7 +503,7 @@ func mustRemoveFiles(paths ...string) {
 func mustSaveCatalogFile(movies []api.Movie) {
 	var err error
 	var file *os.File
-	if file, err = os.OpenFile(filepath.Join(testRoot, "catalog.json"), os.O_WRONLY|os.O_CREATE, 0644); err != nil {
+	if file, err = os.OpenFile(catalogFile, os.O_WRONLY|os.O_CREATE, 0644); err != nil {
 		log.Fatal(err)
 	}
 	m := make(map[int]api.Movie, len(movies))
@@ -624,6 +533,6 @@ func (idx *indexMock) Add(title string, id int) {
 	idx.added = append(idx.added, indexItem{title, id})
 }
 
-func (idx *indexMock) Find(title string) []int {
+func (idx *indexMock) Find(_ string) []int {
 	return idx.found
 }

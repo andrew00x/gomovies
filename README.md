@@ -27,7 +27,7 @@ It requires setup Golang environment, usage of (Remote installation](#Remote ins
       * **video_file_exts** - extensions of video files, default is ```[".avi", ".mkv"]```
       * **tmdb_api_key** - api key of [The Movie Data Base (TMDb)](https://www.themoviedb.org/documentation/api). It is used for getting details about movies.
       * **tmdb_poster_small** - size of small poster, default is ```w92```, see [TMDb Images](https://developers.themoviedb.org/3/getting-started/images)
-      * **tmdb_poster_large** - size of small poster, default is ```w500```, see [TMDb Images](https://developers.themoviedb.org/3/getting-started/images)
+      * **tmdb_poster_large** - size of large poster, default is ```w500```, see [TMDb Images](https://developers.themoviedb.org/3/getting-started/images)
       * **torrent_remote_ctrl_addr** - address for remote control of torrent client, rtorrent is supported for now      
 * Start 
   ```

@@ -99,11 +99,15 @@ func drivesById(drives map[string]*drive) error {
 func setMountPoints(drives map[string]*drive) error {
 	mtab := filepath.Join(etcDir, "mtab")
 	return file.ReadLines(mtab, func(line string) bool {
-		fields := strings.Fields(line)
-		devName := filepath.Base(fields[0])
-		drive, ok := drives[devName]
-		if ok {
-			drive.mountPoint = fields[1]
+		if len(line) > 0 {
+			fields := strings.Fields(line)
+			if len(fields) > 2 {
+				devName := filepath.Base(fields[0])
+				drive, ok := drives[devName]
+				if ok {
+					drive.mountPoint = fields[1]
+				}
+			}
 		}
 		return true
 	})

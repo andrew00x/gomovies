@@ -94,7 +94,7 @@ func (p *OMXPlayer) PlayMovie(path string) (err error) {
 		}
 		go func() {
 			if _, waitErr := p.process.Wait(); waitErr != nil {
-				log.WithFields(log.Fields{"err": err}).Error("Player process ended with error")
+				log.WithFields(log.Fields{"err": waitErr}).Error("Player process ended with error")
 			}
 			for _, l := range p.listeners {
 				l.StopPlay(path)
@@ -304,6 +304,9 @@ func setupControl() (control *omxcontrol.OmxCtrl, err error) {
 	for i := 1; ; i++ {
 		time.Sleep(retryDelay)
 		control, err = omxcontrol.Create()
+		if err != nil {
+			continue
+		}
 		ready, err = control.CanControl()
 		if err == nil && ready {
 			log.WithFields(log.Fields{"attempts": i}).Info("Setup omxplayer control")

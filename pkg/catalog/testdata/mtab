@@ -25,4 +25,6 @@ gvfsd-fuse /run/user/1000/gvfs fuse.gvfsd-fuse rw,nosuid,nodev,relatime,user_id=
 fusectl /sys/fs/fuse/connections fusectl rw,relatime 0 0
 /dev/mmcblk0p8 /media/pi/data ext4 rw,nosuid,nodev,relatime,data=ordered 0 0
 /dev/mmcblk0p5 /media/pi/SETTINGS ext4 rw,nosuid,nodev,relatime,data=ordered 0 0
-/dev/sda1 {{ . }} ntfs ro,nosuid,nodev,relatime,uid=1000,gid=1000,fmask=0177,dmask=077,nls=utf8,errors=continue,mft_zone_multiplier=1 0 0
+{{ range . }}
+{{- .Dev }} {{ .Mount }} ntfs ro,nosuid,nodev,relatime,uid=1000,gid=1000,fmask=0177,dmask=077,nls=utf8,errors=continue,mft_zone_multiplier=1 0 0
+{{ end }}
