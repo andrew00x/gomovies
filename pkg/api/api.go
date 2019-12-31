@@ -61,6 +61,7 @@ type TorrentDownload struct {
 	Size          int64             `json:"size"`
 	CompletedSize int64             `json:"completedSize"`
 	Completed     bool              `json:"completed"`
+	Stopped       bool              `json:"stopped"`
 	Ratio         float32           `json:"ratio"`
 	Attrs         map[string]string `json:"attrs,omitempty"`
 }

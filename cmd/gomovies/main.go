@@ -516,7 +516,7 @@ func torrentListFiles(w http.ResponseWriter, r *http.Request) {
 	var d api.TorrentDownload
 	var err error
 	var files []api.TorrentDownloadFile
-	if d, err = parseTorrentDownload(r); err != nil {
+	if d, err = parseTorrentDownload(r); err == nil {
 		files, err = torrentService.Files(d)
 	}
 	writeJsonResponse(files, err, w)
@@ -525,28 +525,36 @@ func torrentListFiles(w http.ResponseWriter, r *http.Request) {
 func torrentStop(w http.ResponseWriter, r *http.Request) {
 	var d api.TorrentDownload
 	var err error
-	if d, err = parseTorrentDownload(r); err != nil {
+	if d, err = parseTorrentDownload(r); err == nil {
 		err = torrentService.Stop(d)
 	}
-	writeJsonResponse(nil, err, w)
+	if err == nil {
+		d.Stopped = true
+	}
+	writeJsonResponse(d, err, w)
 }
 
 func torrentStart(w http.ResponseWriter, r *http.Request) {
 	var d api.TorrentDownload
 	var err error
-	if d, err = parseTorrentDownload(r); err != nil {
+	if d, err = parseTorrentDownload(r); err == nil {
 		err = torrentService.Start(d)
 	}
-	writeJsonResponse(nil, err, w)
+	if err == nil {
+		d.Stopped = false
+	}
+	writeJsonResponse(d, err, w)
 }
 
 func torrentDelete(w http.ResponseWriter, r *http.Request) {
 	var d api.TorrentDownload
 	var err error
-	if d, err = parseTorrentDownload(r); err != nil {
+	if d, err = parseTorrentDownload(r); err == nil {
 		err = torrentService.Delete(d)
 	}
-	writeJsonResponse(nil, err, w)
+	var ld []api.TorrentDownload
+	ld, err = torrentService.Torrents()
+	writeJsonResponse(ld, err, w)
 }
 
 func parseTorrentDownload(r *http.Request) (d api.TorrentDownload, err error) {
