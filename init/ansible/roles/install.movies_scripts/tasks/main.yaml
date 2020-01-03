@@ -1,26 +1,26 @@
 - name: Copy search movies script
   template:
-    src: gomovies_search_movies.sh.j2
-    dest: "{{ ansible_env.HOME }}/bin/gomovies_search_movies.sh"
+    src: gomovies_movies_search.j2
+    dest: "{{ ansible_env.HOME }}/bin/gomovies_movies_search"
 - name: Make script executable
   file:
-    path: "{{ ansible_env.HOME }}/bin/gomovies_search_movies.sh"
+    path: "{{ ansible_env.HOME }}/bin/gomovies_movies_search"
     mode: u+x
 
 - name: Copy list movies script
   template:
-    src: gomovies_list_movies.sh.j2
-    dest: "{{ ansible_env.HOME }}/bin/gomovies_list_movies.sh"
+    src: gomovies_movies_list.j2
+    dest: "{{ ansible_env.HOME }}/bin/gomovies_movies_list"
 - name: Make script executable
   file:
-    path: "{{ ansible_env.HOME }}/bin/gomovies_list_movies.sh"
+    path: "{{ ansible_env.HOME }}/bin/gomovies_movies_list"
     mode: u+x
 
 - name: Copy search movies details script
   template:
-    src: gomovies_search_movie_details.sh.j2
-    dest: "{{ ansible_env.HOME }}/bin/gomovies_search_movie_details.sh"
+    src: gomovies_details_search.j2
+    dest: "{{ ansible_env.HOME }}/bin/gomovies_details_search"
 - name: Make script executable
   file:
-    path: "{{ ansible_env.HOME }}/bin/gomovies_search_movie_details.sh"
+    path: "{{ ansible_env.HOME }}/bin/gomovies_details_search"
     mode: u+x

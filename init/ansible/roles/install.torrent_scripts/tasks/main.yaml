@@ -1,8 +1,8 @@
 - name: Copy torrent script
   template:
-    src: gomovies_torrent_add.sh.j2
-    dest: "{{ ansible_env.HOME }}/bin/gomovies_torrent_add.sh"
+    src: gomovies_torrent_add.j2
+    dest: "{{ ansible_env.HOME }}/bin/gomovies_torrent_add"
 - name: Make script executable
   file:
-    path: "{{ ansible_env.HOME }}/bin/gomovies_torrent_add.sh"
+    path: "{{ ansible_env.HOME }}/bin/gomovies_torrent_add"
     mode: u+x
