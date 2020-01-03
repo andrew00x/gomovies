@@ -93,18 +93,6 @@ func TestGetTorrents(t *testing.T) {
 	rpc.verify(t, "d.multicall", []interface{}{"main", "d.name=", "d.base_path=", "d.size_bytes=", "d.completed_bytes=", "d.complete=", "d.state=", "d.ratio=", "d.hash="})
 }
 
-func TestGetTorrentFiles(t *testing.T) {
-	rt := &rtorrent{}
-
-	rpc := xmlRpcMock{response: []interface{}{[]interface{}{"./file1.iso", int64(3917479936)}, []interface{}{"./file2.mkv", int64(5117773331)}}}
-	rt.rpc = &rpc
-	files, err := rt.Files(api.TorrentDownload{Attrs: map[string]string{"hash": "torrent hash"}})
-
-	assert.Nil(t, err)
-	assert.Equal(t, []api.TorrentDownloadFile{{Path: "./file1.iso", Size: 3917479936}, {Path: "./file2.mkv", Size: 5117773331}}, files)
-	rpc.verify(t, "f.multicall", []interface{}{"torrent hash", 0, "f.path=", "f.size_bytes="})
-}
-
 type xmlRpcMock struct {
 	method   string
 	args     []interface{}

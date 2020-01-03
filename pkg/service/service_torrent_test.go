@@ -68,17 +68,6 @@ func TestDeleteTorrent(t *testing.T) {
 	assert.Equal(t, []api.TorrentDownload{{Name: "foo"}}, tr.deleted)
 }
 
-func TestGetTorrentFiles(t *testing.T) {
-	setup()
-	tr.downloadFiles = []api.TorrentDownloadFile{{Path: "/foo"}, {Path: "/bar"}}
-
-	srv := &TorrentService{tr: tr}
-
-	res, err := srv.Files(api.TorrentDownload{})
-	assert.Nil(t, err)
-	assert.Equal(t, []api.TorrentDownloadFile{{Path: "/foo"}, {Path: "/bar"}}, res)
-}
-
 func setup() {
 	tr = &torrentMock{}
 	torrent.Factory = func(*config.Config) torrent.Torrent {
@@ -89,7 +78,6 @@ func setup() {
 type torrentMock struct {
 	err           error
 	downloads     []api.TorrentDownload
-	downloadFiles []api.TorrentDownloadFile
 	added         []interface{}
 	deleted       []api.TorrentDownload
 	started       []api.TorrentDownload
@@ -123,8 +111,4 @@ func (t *torrentMock) Start(d api.TorrentDownload) error {
 func (t *torrentMock) Delete(d api.TorrentDownload) error {
 	t.deleted = append(t.deleted, d)
 	return t.err
-}
-
-func (t *torrentMock) Files(tr api.TorrentDownload) ([]api.TorrentDownloadFile, error) {
-	return t.downloadFiles, t.err
 }

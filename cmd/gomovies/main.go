@@ -172,7 +172,6 @@ func main() {
 	http.HandleFunc("/api/player/volumeup", volumeUp)
 	http.HandleFunc("/api/torrent/add", torrentAddFile)
 	http.HandleFunc("/api/torrent/list", torrentListDownloads)
-	http.HandleFunc("/api/torrent/files", torrentListFiles)
 	http.HandleFunc("/api/torrent/stop", torrentStop)
 	http.HandleFunc("/api/torrent/start", torrentStart)
 	http.HandleFunc("/api/torrent/delete", torrentDelete)
@@ -510,16 +509,6 @@ func torrentAddFile(w http.ResponseWriter, r *http.Request) {
 func torrentListDownloads(w http.ResponseWriter, _ *http.Request) {
 	d, err := torrentService.Torrents()
 	writeJsonResponse(d, err, w)
-}
-
-func torrentListFiles(w http.ResponseWriter, r *http.Request) {
-	var d api.TorrentDownload
-	var err error
-	var files []api.TorrentDownloadFile
-	if d, err = parseTorrentDownload(r); err == nil {
-		files, err = torrentService.Files(d)
-	}
-	writeJsonResponse(files, err, w)
 }
 
 func torrentStop(w http.ResponseWriter, r *http.Request) {

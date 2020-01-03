@@ -20,5 +20,4 @@ type Torrent interface {
 	Start(api.TorrentDownload) error
 	Stop(api.TorrentDownload) error
 	Delete(api.TorrentDownload) error
-	Files(api.TorrentDownload) ([]api.TorrentDownloadFile, error)
 }

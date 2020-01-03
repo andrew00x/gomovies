@@ -66,11 +66,6 @@ type TorrentDownload struct {
 	Attrs         map[string]string `json:"attrs,omitempty"`
 }
 
-type TorrentDownloadFile struct {
-	Path string `json:"path"`
-	Size int64  `json:"size"`
-}
-
 type MessagePayload struct {
 	Message string `json:"message"`
 }

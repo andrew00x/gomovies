@@ -67,19 +67,3 @@ func (t *rtorrent) Delete(d api.TorrentDownload) error {
 	_, err := t.rpc.Send("d.erase", []interface{}{d.Attrs["hash"]}...)
 	return err
 }
-
-func (t *rtorrent) Files(d api.TorrentDownload) ([]api.TorrentDownloadFile, error) {
-	res, err := t.rpc.Send("f.multicall", []interface{}{d.Attrs["hash"], 0, "f.path=", "f.size_bytes="})
-	if err != nil {
-		return nil, err
-	}
-	files := make([]api.TorrentDownloadFile, 0)
-	for _, item := range res {
-		data := item.([]interface{})
-		files = append(files, api.TorrentDownloadFile{
-			Path: data[0].(string),
-			Size: data[1].(int64),
-		})
-	}
-	return files, nil
-}

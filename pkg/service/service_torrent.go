@@ -34,10 +34,6 @@ func (srv *TorrentService) Torrents() ([]api.TorrentDownload, error) {
 	return srv.tr.Torrents()
 }
 
-func (srv *TorrentService) Files(d api.TorrentDownload) ([]api.TorrentDownloadFile, error) {
-	return srv.tr.Files(d)
-}
-
 func (srv *TorrentService) Stop(d api.TorrentDownload) error {
 	return srv.tr.Stop(d)
 }
