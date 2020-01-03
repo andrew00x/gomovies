@@ -219,9 +219,14 @@ func loadDetails() {
 }
 
 func allMovies(w http.ResponseWriter, r *http.Request) {
-	lang := r.URL.Query().Get("lang")
+	query := r.URL.Query()
+	lang := query.Get("lang")
 	if lang == "" {
 		lang = "en"
+	}
+	details, err := strconv.ParseBool(query.Get("details"))
+	if err != nil {
+		details = true
 	}
 	result := catalogService.All()
 	l := len(result)
@@ -229,7 +234,10 @@ func allMovies(w http.ResponseWriter, r *http.Request) {
 		m := &result[i]
 		md, found, err := detailsService.MovieDetails(*m, lang, isDetailsLoaded())
 		if err == nil && found {
-			m.Details = &md
+			m.DetailsAvailable = true
+			if details {
+				m.Details = &md
+			}
 		}
 	}
 	writeJsonResponse(result, nil, w)
@@ -241,10 +249,11 @@ func audios(w http.ResponseWriter, _ *http.Request) {
 }
 
 func details(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+	query := r.URL.Query()
+	id, err := strconv.ParseInt(query.Get("id"), 10, 64)
 	var md api.MovieDetails
 	if err == nil {
-		lang := r.URL.Query().Get("lang")
+		lang := query.Get("lang")
 		if lang == "" {
 			lang = "en"
 		}
@@ -372,28 +381,35 @@ func refresh(w http.ResponseWriter, _ *http.Request) {
 }
 
 func searchDetails(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	lang := r.URL.Query().Get("lang")
+	query := r.URL.Query()
+	lang := query.Get("lang")
 	if lang == "" {
 		lang = "en"
 	}
-	result, err := detailsService.SearchDetails(query, lang)
+	result, err := detailsService.SearchDetails(query.Get("q"), lang)
 	writeJsonResponse(result, err, w)
 }
 
 func searchMovies(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	result := catalogService.Find(query)
-	lang := r.URL.Query().Get("lang")
+	query := r.URL.Query()
+	result := catalogService.Find(query.Get("q"))
+	lang := query.Get("lang")
 	if lang == "" {
 		lang = "en"
+	}
+	details, err := strconv.ParseBool(query.Get("details"))
+	if err != nil {
+		details = true
 	}
 	l := len(result)
 	for i := 0; i < l; i++ {
 		m := &result[i]
 		md, found, err := detailsService.MovieDetails(*m, lang, isDetailsLoaded())
 		if err == nil && found {
-			m.Details = &md
+			m.DetailsAvailable = true
+			if details {
+				m.Details = &md
+			}
 		}
 	}
 	writeJsonResponse(result, nil, w)
