@@ -32,7 +32,7 @@ func (t *rtorrent) AddUrl(u string) error {
 
 func (t *rtorrent) Torrents() ([]api.TorrentDownload, error) {
 	res, err := t.rpc.Send("d.multicall",
-		[]interface{}{"main", "d.name=", "d.base_path=", "d.size_bytes=", "d.completed_bytes=", "d.complete=", "d.state=", "d.ratio=", "d.hash="})
+		[]interface{}{"main", "d.name=", "d.base_path=", "d.size_bytes=", "d.completed_bytes=", "d.complete=", "d.state=", "d.ratio=", "d.hash=", "d.message="})
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,10 @@ func (t *rtorrent) Torrents() ([]api.TorrentDownload, error) {
 			Completed:     data[4].(int64) > 0,
 			Stopped:       data[5].(int64) == 0,
 			Ratio:         float32(data[6].(int64)) / 1000,
-			Attrs:         map[string]string{"hash": data[7].(string)},
+			Attrs: map[string]string{
+				"hash":    data[7].(string),
+				"message": data[8].(string),
+			},
 		})
 	}
 	return downloads, nil

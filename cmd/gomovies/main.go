@@ -377,6 +377,10 @@ func replayCurrent(w http.ResponseWriter, _ *http.Request) {
 
 func refresh(w http.ResponseWriter, _ *http.Request) {
 	err := catalogService.Refresh()
+	if err == nil {
+		setDetailsLoaded(false)
+		go loadDetails()
+	}
 	writeJsonResponse(nil, err, w)
 }
 
