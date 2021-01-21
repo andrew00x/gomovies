@@ -75,8 +75,8 @@ func TestGetTorrents(t *testing.T) {
 
 	rpc := xmlRpcMock{response: []interface{}{
 		[]interface{}{
-			[]interface{}{"file1.iso", "./file1.iso", int64(3917479936), int64(3917479936), int64(1), int64(0), int64(1000), "hash1", "message1"},
-			[]interface{}{"file2.mkv", "./file2.mkv", int64(5117773331), int64(2558886665), int64(0), int64(1), int64(500), "hash2", "message2"},
+			[]interface{}{"file1.iso", "./file1.iso", int64(3917479936), int64(3917479936), int64(1), int64(0), int64(1000), "hash1", "message1", int64(0), int64(0)},
+			[]interface{}{"file2.mkv", "./file2.mkv", int64(5117773331), int64(2558886665), int64(0), int64(1), int64(500), "hash2", "message2", int64(2), int64(20000)},
 		}},
 	}
 	rt.rpc = &rpc
@@ -86,11 +86,11 @@ func TestGetTorrents(t *testing.T) {
 	assert.NotNil(t, downloads)
 	assert.Equal(t,
 		[]api.TorrentDownload{
-			{Name: "file1.iso", Path: "./file1.iso", Size: 3917479936, CompletedSize: 3917479936, Completed: true, Stopped: true, Ratio: 1, Attrs: map[string]string{"hash": "hash1", "message": "message1"}},
-			{Name: "file2.mkv", Path: "./file2.mkv", Size: 5117773331, CompletedSize: 2558886665, Completed: false, Stopped: false, Ratio: 0.5, Attrs: map[string]string{"hash": "hash2", "message": "message2"}},
+			{Name: "file1.iso", Path: "./file1.iso", Size: 3917479936, CompletedSize: 3917479936, Completed: true, Stopped: true, Ratio: 1, Rate: 0, Hashing: false, Attrs: map[string]string{"hash": "hash1", "message": "message1"}},
+			{Name: "file2.mkv", Path: "./file2.mkv", Size: 5117773331, CompletedSize: 2558886665, Completed: false, Stopped: false, Ratio: 0.5, Rate: 20000, Hashing: true, Attrs: map[string]string{"hash": "hash2", "message": "message2"}},
 		},
 		downloads)
-	rpc.verify(t, "d.multicall", []interface{}{"main", "d.name=", "d.base_path=", "d.size_bytes=", "d.completed_bytes=", "d.complete=", "d.state=", "d.ratio=", "d.hash=", "d.message="})
+	rpc.verify(t, "d.multicall", []interface{}{"main", "d.name=", "d.base_path=", "d.size_bytes=", "d.completed_bytes=", "d.complete=", "d.state=", "d.ratio=", "d.hash=", "d.message=", "d.hashing=", "d.down.rate="})
 }
 
 type xmlRpcMock struct {
